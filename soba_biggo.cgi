@@ -19,13 +19,13 @@ $startTime =~ s/(\....).*$/$1/;
 $prevTime  =~ s/(\....).*$/$1/;
 
 # use DBI;
-# my $dbh = DBI->connect ( "dbi:Pg:dbname=testdb;host=131.215.52.76", "postgres", "") or die "Cannot connect to database!\n";     # for remote access
+# my $dbh = DBI->connect ( "dbi:Pg:dbname=testdb;host=", "postgres", "") or die "Cannot connect to database!\n";     # for remote access
 # my $result;
 
 my $json = JSON->new->allow_nonref;
 my $query = new CGI;
 # my $base_solr_url = 'http://golr.berkeleybop.org/';		# GO golr server
-my $base_solr_url = 'http://localhost:8080/solr/biggo/';		# big geneontology golr server
+my $base_solr_url = 'http://wobr2.caltech.edu:8080/solr/biggo/';		# big geneontology golr server
 
 
 my %paths;	# finalpath => array of all (array of nodes of paths that end)

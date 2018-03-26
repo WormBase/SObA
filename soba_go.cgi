@@ -16,13 +16,13 @@ my $startTime = time; my $prevTime = time;
 $startTime =~ s/(\....).*$/$1/;
 $prevTime  =~ s/(\....).*$/$1/;
 
-use DBI;
-my $dbh = DBI->connect ( "dbi:Pg:dbname=testdb;host=131.215.52.76", "postgres", "") or die "Cannot connect to database!\n";     # for remote access
-my $result;
+# use DBI;
+# my $dbh = DBI->connect ( "dbi:Pg:dbname=testdb;host=", "postgres", "") or die "Cannot connect to database!\n";     # for remote access
+# my $result;
 
 my $json = JSON->new->allow_nonref;
 my $query = new CGI;
-my $base_solr_url = 'http://wobr.caltech.edu:8082/solr/';		# raymond dev URL 2015 07 24
+my $base_solr_url = 'http://localhost:8080/solr/';		# raymond dev URL 2015 07 24
 
 
 my %paths;	# finalpath => array of all (array of nodes of paths that end)
