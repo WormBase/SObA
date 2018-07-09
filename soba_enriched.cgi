@@ -617,7 +617,7 @@ sub populateGeneNamesFromFlatfile {
 # } # sub populateGeneNamesFromPostgres
 
 sub calculateNodesAndEdges {
-  my ($focusTermId, $datatype, $rootsChosen, $filterForLcaFlag, $maxNodes) = @_;
+  my ($caoFile, $focusTermId, $datatype, $rootsChosen, $filterForLcaFlag, $maxNodes) = @_;
   my (@parentNodes) = split/,/, $rootsChosen;
   unless ($datatype) { $datatype = 'phenotype'; }			# later will need to change based on different datatypes
   my ($var, $radio_iea)       = &getHtmlVar($query, 'radio_iea');
@@ -686,24 +686,28 @@ sub calculateNodesAndEdges {
   }
 
 
-# NEW SECTION
+# CAO SECTION
   %annotationCounts = ();							# get annotation counts from evidence type
   %nodes = ();
-  my (@text_files) = </home/raymond/local/src/git/SObA/CaoTestFile/*>;
-#   my $infile = '/home/raymond/local/src/git/SObA/CaoTestFile/SR1_vs_wt_BP.txt';
-  foreach my $infile (@text_files) {
-    open (IN, "<$infile") or die "Cannot open $infile : $!";
-    my $junk = <IN>;
-    while (my $line = <IN>) {
-      chomp $line;
-      my ($count, $goid, $pvalue, $odds, @junk) = split/\t/, $line;
-      $phenotypes{$goid}++;
-#       $annotationCounts{$goid}{'any'}++;
-#       $nodes{$goid}{'counts'}{'any'}++;
-    } # while my ($line = <IN>)
-    close (IN) or die "Cannot close $infile : $!";
-  } # foreach my $infile (@text_files)
-# END NEW SECTION
+  my @cao = qw( SR1_vs_wt SR1_vs_axenic SR1_vs_rpoS rpoS_vs_axenic rpoS_vs_wt wt_vs_axenic );
+  my %cao = (); foreach (@cao) { $cao{$_}++; }
+  if ($cao{$caoFile}) {
+    my (@text_files) = </home/raymond/local/src/git/SObA/CaoTestFile/$caoFile*>;
+#     my $infile = '/home/raymond/local/src/git/SObA/CaoTestFile/SR1_vs_wt_BP.txt';
+    foreach my $infile (@text_files) {
+      open (IN, "<$infile") or die "Cannot open $infile : $!";
+      my $junk = <IN>;
+      while (my $line = <IN>) {
+        chomp $line;
+        my ($count, $goid, $pvalue, $odds, @junk) = split/\t/, $line;
+        $phenotypes{$goid}++;
+#         $annotationCounts{$goid}{'any'}++;
+#         $nodes{$goid}{'counts'}{'any'}++;
+      } # while my ($line = <IN>)
+      close (IN) or die "Cannot close $infile : $!";
+    } # foreach my $infile (@text_files)
+  }
+# END CAO SECTION
 
 #   my $count = 0;
   foreach my $phenotypeId (sort keys %phenotypes) {
@@ -853,6 +857,7 @@ sub annotSummaryJson {			# temporarily keep this for the live www.wormbase going
 
 sub annotSummaryJsonCode {
   my ($var, $focusTermId)       = &getHtmlVar($query, 'focusTermId');
+  my ($var, $caoFile)           = &getHtmlVar($query, 'caoFile');
   my ($var, $datatype)          = &getHtmlVar($query, 'datatype');
   my ($var, $fakeRootFlag)      = &getHtmlVar($query, 'fakeRootFlag');
   my ($var, $filterLongestFlag) = &getHtmlVar($query, 'filterLongestFlag');
@@ -861,7 +866,7 @@ sub annotSummaryJsonCode {
   my ($var, $maxNodes)          = &getHtmlVar($query, 'maxNodes');
   unless ($maxNodes) { $maxNodes = 0; }
   my (@rootsChosen) = split/,/, $rootsChosen;
-  my ($return, $nodesHashref, $edgesLcaHashref) = &calculateNodesAndEdges($focusTermId, $datatype, $rootsChosen, $filterForLcaFlag, $maxNodes);
+  my ($return, $nodesHashref, $edgesLcaHashref) = &calculateNodesAndEdges($caoFile, $focusTermId, $datatype, $rootsChosen, $filterForLcaFlag, $maxNodes);
   if ($return) { print qq(RETURN $return ENDRETURN\n); }
   my %nodes    = %$nodesHashref;
   my %edgesLca = %$edgesLcaHashref;
@@ -997,16 +1002,23 @@ sub annotSummaryJsonCode {
     my $backgroundColor = 'white'; 
     if ($rootNodes{$node}) {
       my $nodeColor  = 'blue';  if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
-      if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
-  $node =~ s/GO://; push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle" } }); }
+
+# CAO don't set bgcolor for go slim, border solid instead of dashed
+#       if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
+#   $node =~ s/GO://; push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle" } });
+  $node =~ s/GO://; push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle" } }); }
       elsif ($nodes{$node}{lca}) {
 # print qq(LCA NODE $node\n);
-           if ($goslimIds{$node}) { $backgroundColor = 'blue'; }
-           $node =~ s/GO://; push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse" } });   }
+
+# CAO don't set bgcolor for go slim, border solid instead of dashed
+#            if ($goslimIds{$node}) { $backgroundColor = 'blue'; }
+#            $node =~ s/GO://; push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse" } });  
+           $node =~ s/GO://; push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "blue", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse" } });   }
       elsif ($nodes{$node}{annot}) {
 # print qq(ANNOT NODE $node\n);
-         if ($goslimIds{$node}) { $backgroundColor = 'red'; }
+# CAO don't set bgcolor for go slim
+#          if ($goslimIds{$node}) { $backgroundColor = 'red'; }
          $node =~ s/GO://; push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "red", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse" } });     } 
       else {
 # print qq(OTHER NODE $node\n); 
@@ -1045,6 +1057,7 @@ sub annotSummaryCytoscape {
   my ($all_roots) = @_;
   my ($var, $focusTermId)          = &getHtmlVar($query, 'focusTermId');
   ($var, my $autocompleteValue)    = &getHtmlVar($query, 'autocompleteValue');
+  ($var, my $caoFile)              = &getHtmlVar($query, 'caoFile');
   ($var, my $datatype)             = &getHtmlVar($query, 'datatype');
   ($var, my $showControlsFlag)     = &getHtmlVar($query, 'showControlsFlag');
   ($var, my $fakeRootFlag)         = &getHtmlVar($query, 'fakeRootFlag');
@@ -1107,7 +1120,7 @@ sub annotSummaryCytoscape {
 
 #   my $jsonUrl = 'http://wobr2.caltech.edu/~azurebrd/wbgene00000899b.json';
 #   my $jsonUrl = 'http://wobr2.caltech.edu/~azurebrd/cgi-bin/amigo.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId;
-  my $jsonUrl = 'soba_enriched.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&radio_iea=' . $radio_iea . '&rootsChosen=' . $roots;
+  my $jsonUrl = 'soba_enriched.cgi?action=annotSummaryJson&caoFile=' . $caoFile . '&focusTermId=' . $focusTermId . '&radio_iea=' . $radio_iea . '&rootsChosen=' . $roots;
   unless ($showControlsFlag) { $showControlsFlag = 0; }
   $jsonUrl .= "&showControlsFlag=$showControlsFlag";
   unless ($fakeRootFlag) { $fakeRootFlag = 0; }
@@ -1452,7 +1465,9 @@ Content-type: text/html\n
     rootsPossible.forEach(function(rootTerm) {
       if (document.getElementById(rootTerm).checked) { rootsChosen.push(document.getElementById(rootTerm).value); } });
     var rootsChosenGroup = rootsChosen.join(',');
-    var url = 'soba_enriched.cgi?action=annotSummaryJson&focusTermId=$focusTermId&radio_iea=' + radioExcludeIea + '&rootsChosen=' + rootsChosenGroup + '&fakeRootFlag=' + fakeRootFlagValue + '&maxNodes=' + maxNodes + '&filterLongestFlag=' + filterLongestFlagValue + '&filterForLcaFlag=' + filterForLcaFlagValue;
+// CAO has caoFile
+//     var url = 'soba_enriched.cgi?action=annotSummaryJson&focusTermId=$focusTermId&radio_iea=' + radioExcludeIea + '&rootsChosen=' + rootsChosenGroup + '&fakeRootFlag=' + fakeRootFlagValue + '&maxNodes=' + maxNodes + '&filterLongestFlag=' + filterLongestFlagValue + '&filterForLcaFlag=' + filterForLcaFlagValue;
+    var url = 'soba_enriched.cgi?action=annotSummaryJson&caoFile=$caoFile&focusTermId=$focusTermId&radio_iea=' + radioExcludeIea + '&rootsChosen=' + rootsChosenGroup + '&fakeRootFlag=' + fakeRootFlagValue + '&maxNodes=' + maxNodes + '&filterLongestFlag=' + filterLongestFlagValue + '&filterForLcaFlag=' + filterForLcaFlagValue;
 //     alert(url); 
     var graphPNew = \$.ajax({
       url: url,
