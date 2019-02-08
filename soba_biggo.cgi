@@ -897,7 +897,7 @@ sub recurseAncestorsToAddEdges {		# for a given node in the graph after longest 
 
 sub getGoSlimGoids {
   my %goslimIds;
-  my $goslimUrl = 'http://localhost:8080/solr/biggo/select?qt=standard&fl=id,annotation_class_label,topology_graph_json,subset&version=2.2&wt=json&indent=on&rows=1000&q=*:*&fq=document_category:%22ontology_class%22&fq=subset:%22goslim_%22';
+  my $goslimUrl = 'http://localhost:8080/solr/biggo/select?qt=standard&fl=id,annotation_class_label,topology_graph_json,subset&version=2.2&wt=json&indent=on&rows=1000&q=*:*&fq=document_category:%22ontology_class%22&fq=subset:%22goslim_agr%22';
   my $goslimData = get $goslimUrl;
   my $perl_scalar = $json->decode( $goslimData );
   my %goslimHash = %$perl_scalar;
