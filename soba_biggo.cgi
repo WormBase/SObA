@@ -1072,7 +1072,7 @@ Content-type: text/html\n
         var maxOption = then[0].elements.meta.fullDepth;
         document.getElementById('maxDepth').options.length = 0;
         for( var i = 0; i <= maxOption; i++ ){
-          var label = i; if (i == 0) { label = 'all'; }
+          var label = i; if (i == 0) { label = 'max'; }
           document.getElementById('maxDepth').options[i] = new Option(label, i, true, false) }
         
         cyPhenGraph.on('tap', 'node', function(e){
@@ -1317,8 +1317,8 @@ Content-type: text/html\n
         <input type="checkbox" id="fakeRootFlag"      name="fakeRootFlag"      value="1" $checked_fakeRoot>Fake Root<br/>
         <input type="checkbox" id="filterForLcaFlag"  name="filterForLcaFlag"  value="1" $checked_filterLca>Filter LCA Nodes<br/>
         <input type="checkbox" id="filterLongestFlag" name="filterLongestFlag" value="1" $checked_filterLongest>Filter Longest Edges<br/>
-        Max Nodes<input type="input" size="3" id="maxNodes" name="maxNodes" value="0"><br/>
-        Max Depth<select size="1" id="maxDepth" name="maxDepth">
+        <!--Max Nodes<input type="input" size="3" id="maxNodes" name="maxNodes" value="0"><br/>-->
+        Depth<select size="1" id="maxDepth" name="maxDepth">
         </select><br/>
         <br/>
       </div>
