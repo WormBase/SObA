@@ -447,7 +447,7 @@ sub calculateNodesAndEdges {
       if ($nodes[$index]{'lbl'}) { $lbl = $nodes[$index]{'lbl'}; }
       next unless ($id);
 # UNDO THIS
-      $lbl = "$id - $lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
+#       $lbl = "$id - $lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
       $nodes{$id}{label} = $lbl;
       next unless ($transNodes{$id});
 #       $lbl =~ s/ /<br\/>/g;                                                # replace spaces with html linebreaks in graph for more-square boxes
@@ -826,15 +826,14 @@ sub annotSummaryJsonCode {
     my $labelColor = 'black'; if ($node eq 'GO:0000000') { $labelColor = '#fff'; }
     my $backgroundColor = 'white'; 
     my $nodeExpandable = 'false'; 
-#     if ($node =~ m/5$/) { $labelColor = 'green'; $nodeExpandable = 'true'; }
-#     foreach my $child (sort keys %{ $edgesLcaAllTrimmed{$node} }) { # }               # each child of node
-    foreach my $child (sort keys %{ $edgesLca{$node} }) {               # each child of node
-# print qq(NODE $node CHILD $child HAS $nodes{$child}{label} E<br>\n);
-      unless ($nodes{$child}{label}) { 
-# print qq(BLANK NODE $node CHILD $child HAS $nodes{$child}{label} E<br>\n);
-        $labelColor = 'green';
-        $nodeExpandable = 'true'; 
-    } }
+# label nodes green if they have a child it could expand into, not relevant 2019 02 08
+#     foreach my $child (sort keys %{ $edgesLca{$node} }) {               # each child of node
+# # print qq(NODE $node CHILD $child HAS $nodes{$child}{label} E<br>\n);
+#       unless ($nodes{$child}{label}) { 
+# # print qq(BLANK NODE $node CHILD $child HAS $nodes{$child}{label} E<br>\n);
+#         $labelColor = 'green';
+#         $nodeExpandable = 'true'; 
+#     } }
 
     if ($rootNodes{$node}) {
       my $nodeColor  = 'blue';  if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
@@ -1089,7 +1088,7 @@ Content-type: text/html\n
           var nodeId   = node.data('id');
           var nodeName = node.data('name');
           var annotCounts = node.data('annotCounts');
-          var qtipContent = annotCounts + '<br/><a target="_blank" href="http://amigo.geneontology.org/amigo/term/GO:' + nodeId + '">' + nodeName + '</a>';
+          var qtipContent = annotCounts + '<br/><a target="_blank" href="http://amigo.geneontology.org/amigo/term/GO:' + nodeId + '">GO:' + nodeId + ' - ' + nodeName + '</a>';
           node.qtip({
                position: {
                  my: 'top center',
@@ -1124,7 +1123,7 @@ Content-type: text/html\n
             var nodeId   = node.data('id');
             var nodeName = node.data('name');
             var annotCounts = node.data('annotCounts');
-            var qtipContent = annotCounts + '<br/><a target="_blank" href="http://amigo.geneontology.org/amigo/term/GO:' + nodeId + '">' + nodeName + '</a>';
+            var qtipContent = annotCounts + '<br/><a target="_blank" href="http://amigo.geneontology.org/amigo/term/GO:' + nodeId + '">GO:' + nodeId + ' - ' + nodeName + '</a>';
             \$('#info').html( qtipContent );
         });
 
@@ -1276,6 +1275,7 @@ Content-type: text/html\n
     <span id="descriptionTerms">$descriptionTerms</span><br/><br/>
     <span id="nodeCount" style="display: $show_node_count ">node count<br/></span>
     <span id="edgeCount" style="display: $show_node_count ">edge count<br/></span>
+    Graph Depth<select size="1" id="maxDepth" name="maxDepth"></select><br/><br/>
     Legend :<br/>
     <table>
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -1312,14 +1312,12 @@ Content-type: text/html\n
       </div><br/>
       <input type="hidden" name="focusTermId" value="$focusTermId">
       <div id="controlMenu" style="display: $displayControlMenu;">
+        <!--Max Nodes<input type="input" size="3" id="maxNodes" name="maxNodes" value="0"><br/>-->
         <input type="checkbox" id="showControlsFlag"  name="showControlsFlag"  value="1" $checked_showControls>Show Controls<br/>
         <div id="hidethis" style="display: none;"> <input type="checkbox" id="nodeCountFlag"     name="nodeCountFlag"     value="1" $checked_nodeCount>Node Count<br/></div>
         <input type="checkbox" id="fakeRootFlag"      name="fakeRootFlag"      value="1" $checked_fakeRoot>Fake Root<br/>
         <input type="checkbox" id="filterForLcaFlag"  name="filterForLcaFlag"  value="1" $checked_filterLca>Filter LCA Nodes<br/>
         <input type="checkbox" id="filterLongestFlag" name="filterLongestFlag" value="1" $checked_filterLongest>Filter Longest Edges<br/>
-        <!--Max Nodes<input type="input" size="3" id="maxNodes" name="maxNodes" value="0"><br/>-->
-        Depth<select size="1" id="maxDepth" name="maxDepth">
-        </select><br/>
         <br/>
       </div>
     </form>

@@ -100,7 +100,7 @@ function onAutocompleteItemSelect(oSelf , elItem) {          // if an item is hi
 //   var match = elItem[0]._sName.match(/input_(.*)/);             // get the key and value
 //   var field = match[1];
   var value = elItem[1].innerHTML;                              // get the selected value
-  var url = 'http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&showControlsFlag=1&autocompleteValue=' + value;
+  var url = 'http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&showControlsFlag=0&autocompleteValue=' + value;
 
 //   var found = value.match(/, (.*?),/i);
 //   var url = 'http://131.215.12.191/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&focusTermId=' + found[1];
