@@ -25,7 +25,7 @@ YAHOO.util.Event.addListener(window, "load", function() {          // on load as
 
 function setAutocompleteListeners() {                              // add listener for gene, species, pmids
 //     var autocompleteFieldsArray = ['Gene', 'Species', 'person'];
-    var autocompleteFieldsArray = ['Gene', 'person'];
+    var autocompleteFieldsArray = ['Gene'];
     for (var i = 0; i < autocompleteFieldsArray.length; i++) {     // for each field to autocomplete
         var field = autocompleteFieldsArray[i];
         settingAutocompleteListeners = function() {
@@ -39,7 +39,13 @@ function setAutocompleteListeners() {                              // add listen
             var taxonFq = taxons.join('+OR+');
 //             alert(taxonFq);
 
-            var sUrl = cgiUrl + "?action=autocompleteXHR&taxonFq=" + taxonFq + "&field=" + field + "&";   // ajax calls need curator and datatype
+            var datatypeValue = 'phenotype';
+            var radioDatatypeElements = document.getElementsByName("radio_datatype");
+            for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
+              if (radioDatatypeElements[i].checked) {
+                datatypeValue = radioDatatypeElements[i].value; } }
+            var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=" + field + "&";   // ajax calls need curator and datatype
+//             var sUrl = cgiUrl + "?action=autocompleteXHR&taxonFq=" + taxonFq + "&field=" + field + "&";   // ajax calls need curator and datatype
             var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
             oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
             oDS.responseSchema = {                                 // Define the schema of the delimited results
@@ -100,10 +106,17 @@ function onAutocompleteItemSelect(oSelf , elItem) {          // if an item is hi
 //   var match = elItem[0]._sName.match(/input_(.*)/);             // get the key and value
 //   var field = match[1];
   var value = elItem[1].innerHTML;                              // get the selected value
-  var url = 'http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&showControlsFlag=0&autocompleteValue=' + value;
+  var datatypeValue = 'phenotype';
+  var radioDatatypeElements = document.getElementsByName("radio_datatype");
+  for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
+    if (radioDatatypeElements[i].checked) {
+      datatypeValue = radioDatatypeElements[i].value; } }
+//   var url = 'http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&autocompleteValue=' + value;
+  var url = 'http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&datatype=' + datatypeValue + '&autocompleteValue=' + value;
 
 //   var found = value.match(/, (.*?),/i);
 //   var url = 'http://131.215.12.191/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&focusTermId=' + found[1];
+//   console.log(url);
   window.location = url;
 }
 
