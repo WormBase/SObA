@@ -14,6 +14,8 @@
 # Show "No observed ...", e.g.
 # https://wormbase.org/species/c_elegans/gene/WBGene00002159#0b--10
 
+# ZK512.8
+
 
 
 use CGI;
@@ -555,16 +557,19 @@ sub calculateNodesAndEdges {
 #     @parentNodes = ( 'WBPhenotype:0000886');	# TESTING , doesn't work 2019 03 01
 #   }
 
-# # radio_iea=radio_withiea&rootsChosen=&maxNodes=0&maxDepth=0&filterLongestFlag=0&filterForLcaFlag=1
-# # radio_iea=radio_withiea&rootsChosen=                   &showControlsFlag=1&fakeRootFlag=0&filterForLcaFlag=1&filterLongestFlag=0&maxNodes=0&maxDepth=0
-# # radio_iea=             &rootsChosen=WBPhenotype:0000886&showControlsFlag=1               &filterForLcaFlag=0&filterLongestFlag=0&maxNodes=0&maxDepth=0
+# # radio_etgo=radio_etgo_withiea&rootsChosen=&maxNodes=0&maxDepth=0&filterLongestFlag=0&filterForLcaFlag=1
+# # radio_etgo=radio_etgo_withiea&rootsChosen=                   &showControlsFlag=1&fakeRootFlag=0&filterForLcaFlag=1&filterLongestFlag=0&maxNodes=0&maxDepth=0
+# # radio_etgo=             &rootsChosen=WBPhenotype:0000886&showControlsFlag=1               &filterForLcaFlag=0&filterLongestFlag=0&maxNodes=0&maxDepth=0
 # # 
 # # DOESN"T WORK
-# # http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJson&focusTermId=WB:WBGene00002282&radio_iea=radio_withiea&rootsChosen=&fakeRootFlag=0&maxNodes=0&maxDepth=0&filterLongestFlag=0&filterForLcaFlag=1
-# # http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJson&focusTermId=WB:WBGene00002282&radio_iea=&rootsChosen=WBPhenotype:0000886&showControlsFlag=1&fakeRootFlag=0&filterForLcaFlag=0&filterLongestFlag=0&maxNodes=0&maxDepth=0
+# # http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJson&focusTermId=WB:WBGene00002282&radio_etgo=radio_etgo_withiea&rootsChosen=&fakeRootFlag=0&maxNodes=0&maxDepth=0&filterLongestFlag=0&filterForLcaFlag=1
+# # http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJson&focusTermId=WB:WBGene00002282&radio_etgo=&rootsChosen=WBPhenotype:0000886&showControlsFlag=1&fakeRootFlag=0&filterForLcaFlag=0&filterLongestFlag=0&maxNodes=0&maxDepth=0
 # # WORKS
 
-  my ($var, $radio_iea)       = &getHtmlVar($query, 'radio_iea');
+  my ($var, $radio_etgo)       = &getHtmlVar($query, 'radio_etgo');
+  my ($var, $radio_etp)        = &getHtmlVar($query, 'radio_etp');
+  my ($var, $radio_etd)        = &getHtmlVar($query, 'radio_etd');
+  my ($var, $radio_eta)        = &getHtmlVar($query, 'radio_eta');
   my $toReturn = '';
   my $solr_url = $base_solr_url . $datatype . '/';
     # link 1, from wbgene get wbphenotypes from   "grouped":{ "annotation_class":{ "matches":12, "ngroups":4, "groups":[{ "groupValue":"WBPhenotype:0000674", # }]}}
@@ -605,25 +610,56 @@ sub calculateNodesAndEdges {
   my %annotationCounts;							# get annotation counts from evidence type
   my %phenotypes; my @annotPhenotypes;					# array of annotated terms to loop and do pairwise comparisons
   my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $focusTermId . '%22';
-  if ($radio_iea eq 'radio_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $focusTermId . '%22'; }
-    elsif ($radio_iea eq 'radio_onlyiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=bioentity,regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:(IDA+IEP+IGC+IGI+IMP+IPI)&fq=bioentity:%22' . $focusTermId . '%22'; }
+  if ($radio_etgo) {
+    if ($radio_etgo eq 'radio_etgo_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $focusTermId . '%22'; }
+      elsif ($radio_etgo eq 'radio_etgo_onlyiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=bioentity,regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:(IDA+IEP+IGC+IGI+IMP+IPI)&fq=bioentity:%22' . $focusTermId . '%22'; } }
+  if ($radio_etp) {
+    if ($radio_etp eq 'radio_etp_onlyvariation') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:Variation&fq=bioentity:%22' . $focusTermId . '%22'; }
+      elsif ($radio_etp eq 'radio_etp_onlyrnai') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:RNAi&fq=bioentity:%22' . $focusTermId . '%22'; } }
+  if ($radio_etd) {
+    if ($radio_etd eq 'radio_etd_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $focusTermId . '%22'; } }
+  if ($radio_eta) {
+    if ($radio_eta eq 'radio_eta_onlyexprcluster') {       $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:WBPaper*)&fq=bioentity:%22' . $focusTermId . '%22'; }
+      elsif ($radio_eta eq 'radio_eta_onlyexprpattern') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:Expr*+*WB\:Marker*)&fq=bioentity:%22' . $focusTermId . '%22'; } }
+
+
+# Anatomy, Expr and Expression_cluster (ref.
+# https://wormbase.org/tools/ontology_browser/show_genes?focusTermName=Anatomy&focusTermId=WBbt:0005766).
+# There are three groups of objects WB:Expr***, WBMarker*** (these are Expression patterns), WB:WBPaper*** (these are Expression profiles).
+
 # amigo.cgi query
 #   $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22WB:' . $focusTermId . '%22';
 
   my $page_data   = get $annotation_count_solr_url;                                           # get the URL
 #   print qq( annotation_count_solr_url $annotation_count_solr_url\n);                                           # get the URL
+# numFound == 0
   my $perl_scalar = $json->decode( $page_data );                        # get the solr data
   my %jsonHash    = %$perl_scalar;
 
+  if ($jsonHash{'response'}{'numFound'} == 0) { return ($toReturn, \%nodes, \%nodes); }	# return nothing if there are no annotations found
+
   foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
-      my $phenotype = $$doc{'annotation_class'};
-      $phenotypes{$phenotype}++;
-      my $id = $$doc{'id'};
-      my (@idarray) = split/\t/, $id;
-      my $type = $idarray[6];
-      foreach my $goid (@{ $$doc{'regulates_closure'} }) {
-        $annotationCounts{$goid}{'any'}++; $annotationCounts{$goid}{$type}++; 
-        $nodes{$goid}{'counts'}{'any'}++;  $nodes{$goid}{'counts'}{$type}++;  } 
+    my $phenotype = $$doc{'annotation_class'};
+    $phenotypes{$phenotype}++;
+    my $id = $$doc{'id'};
+    my (@idarray) = split/\t/, $id;
+    if ($datatype eq 'anatomy') {  
+        my @entries = split/\|/, $idarray[7];
+        foreach my $entry (@entries) { 
+          my $type = ''; 
+          if ($entry =~ m/^WB:Expr/) {         $type = 'Expression Pattern'; }
+            elsif ($entry =~ m/^WBMarker/) {   $type = 'Expression Pattern'; }
+            elsif ($entry =~ m/^WB:WBPaper/) { $type = 'Expression Cluster'; }
+          if ($type) {
+            foreach my $goid (@{ $$doc{'regulates_closure'} }) {
+              $annotationCounts{$goid}{'any'}++; $annotationCounts{$goid}{$type}++; 
+              $nodes{$goid}{'counts'}{'any'}++;  $nodes{$goid}{'counts'}{$type}++;  } } } }
+      else {
+        my $type = $idarray[6];
+        if ($datatype eq 'lifestage') { if ($type eq 'IDA') { $type = 'Gene Expression'; } }
+        foreach my $goid (@{ $$doc{'regulates_closure'} }) {
+          $annotationCounts{$goid}{'any'}++; $annotationCounts{$goid}{$type}++; 
+          $nodes{$goid}{'counts'}{'any'}++;  $nodes{$goid}{'counts'}{$type}++;  } }
   }
 
 
@@ -692,7 +728,7 @@ sub calculateNodesAndEdges {
      foreach my $annotTerm (sort keys %nodesAll) {
        $nodes{$annotTerm}{annot}++;
        foreach my $phenotype (sort keys %{ $nodesAll{$annotTerm} }) {
-         my $url = "http://www.wormbase.org/species/all/go_term/$phenotype";                              # URL to link to wormbase page for object
+#          my $url = "http://www.wormbase.org/species/all/go_term/$phenotype";                              # URL to link to wormbase page for object
            $allLca{$phenotype}++;
            unless ($phenotypes{$phenotype}) { 					# only add lca nodes that are not annotated terms
 # print qq(NODES $phenotype LCA\n);
@@ -700,14 +736,14 @@ sub calculateNodesAndEdges {
     else {
       while (@annotPhenotypes) {
         my $ph1 = shift @annotPhenotypes;					# compare each annotated term node to all other annotated term nodes
-        my $url = "http://www.wormbase.org/species/all/go_term/$ph1";                              # URL to link to wormbase page for object
+#         my $url = "http://www.wormbase.org/species/all/go_term/$ph1";                              # URL to link to wormbase page for object
         my $xlabel = $ph1; 	# FIX
         $nodes{$ph1}{annot}++;
         foreach my $ph2 (@annotPhenotypes) {				# compare each annotated term node to all other annotated term nodes
           my $lcaHashref = &calculateLCA($ph1, $ph2);
           my %lca = %$lcaHashref;
           foreach my $lca (sort keys %lca) {
-            $url = "http://www.wormbase.org/species/all/go_term/$lca";                              # URL to link to wormbase page for object
+#             $url = "http://www.wormbase.org/species/all/go_term/$lca";                              # URL to link to wormbase page for object
             $allLca{$lca}++;
             unless ($phenotypes{$lca}) { 					# only add lca nodes that are not annotated terms
               $xlabel = $lca; 					# FIX
@@ -736,14 +772,16 @@ sub calculateNodesAndEdges {
       } # foreach my $child (sort keys %{ $edgesPtcCopy{$parent} })
     } # while (scalar keys %{ $edgesPtcCopy{$parent} } > 0)
   } # while (@parentNodes)
-  foreach my $parent (sort keys %edgesLca) {
-    my $parent_placeholder = $parent;
-    $parent_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-    foreach my $child (sort keys %{ $edgesLca{$parent} }) {
-      my $child_placeholder = $child;
-      $child_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-    } # foreach my $child (sort keys %{ $edgesLca{$parent} })
-  } # foreach my $parent (sort keys %edgesLca)
+
+# don't think this does anything, did before for svg at some point
+#   foreach my $parent (sort keys %edgesLca) {
+#     my $parent_placeholder = $parent;
+#     $parent_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
+#     foreach my $child (sort keys %{ $edgesLca{$parent} }) {
+#       my $child_placeholder = $child;
+#       $child_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
+#     } # foreach my $child (sort keys %{ $edgesLca{$parent} })
+#   } # foreach my $parent (sort keys %edgesLca)
 
   return ($toReturn, \%nodes, \%edgesLca);
 } # sub calculateNodesAndEdges
@@ -793,7 +831,8 @@ sub annotSummaryJsonCode {
       $nodes{$fakeRoot}{label} = 'Gene Ontology';
       $nodesAll{$fakeRoot}{label} = 'Gene Ontology';
       foreach my $sub (@rootsChosen) {
-        $edgesLca{$fakeRoot}{$sub}++;					# any existing edge, parent to child 
+        if ($nodes{$sub}{'counts'}) {					# root must have an annotation to be added
+          $edgesLca{$fakeRoot}{$sub}++; }				# any existing edge, parent to child 
   } } }
   my @nodes = ();
   my %rootNodes; 
@@ -1030,14 +1069,18 @@ sub annotSummaryJsonCode {
   foreach my $source (sort keys %edgesLca) {
     foreach my $target (sort keys %{ $edgesLca{$source } }) {
       my $lineColor = '#ddd'; if ($source eq 'GO:0000000') { $lineColor = '#fff'; }
-      my $cSource = $source; # $cSource =~ s/GO://;
-      my $cTarget = $target; # $cTarget =~ s/GO://;
+      my $cSource = $source;		# $cSource =~ s/GO://;
+      my $cTarget = $target;		# $cTarget =~ s/GO://;
+      my $cSourceColonless = $cSource;      $cSourceColonless =~ s/://;	
+      my $cTargetColonless = $cTarget;      $cTargetColonless =~ s/://;	
+
+
 # FIX tracking if needs prefix
       $nodesWithEdges{"$cSource"}++; $nodesWithEdges{"$cTarget"}++;
 #       $nodesWithEdges{"GO:$cSource"}++; $nodesWithEdges{"GO:$cTarget"}++;
-      my $name = $cSource . $cTarget;
+      my $name = $cSourceColonless . $cTargetColonless;
 # print qq(SOURCE $source TARGET $target E\n);
-      push @edges, qq({ "data" : { "id" : "$name", "weight" : 1, "source" : "$cSource", "target" : "$cTarget", "lineColor" : "$lineColor" } }); } }
+      push @edges, qq({ "data" : { "id" : "$name", "weight" : 1, "source" : "$cSourceColonless", "target" : "$cTargetColonless", "lineColor" : "$lineColor" } }); } }
   my $edges = join",\n", @edges; 
 
   my ($goslimIdsRef) = &getGoSlimGoids($datatype);
@@ -1076,30 +1119,36 @@ sub annotSummaryJsonCode {
 #         $nodeExpandable = 'true'; 
 #     } }
 
+    my $cytId = $node; $cytId =~ s/://;
     if ($rootNodes{$node}) {
+      next unless ($nodes{$node}{'counts'});			# only add a root if it has annotations
       my $nodeColor  = 'blue';  if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
       if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
 #         $node =~ s/GO://; 
-        push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable" } }); }
+        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable" } }); }
       elsif ($nodes{$node}{lca}) {
 # print qq(LCA NODE $node\n);
         if ($goslimIds{$node}) { $backgroundColor = 'blue'; }
 #         $node =~ s/GO://; 
-        push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });   }
+        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });   }
       elsif ($nodes{$node}{annot}) {
 # print qq(ANNOT NODE $node\n);
          if ($goslimIds{$node}) { $backgroundColor = 'red'; }
 #          $node =~ s/GO://; 
-         push @nodes, qq({ "data" : { "id" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "red", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });     } 
+         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "red", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });     } 
       else {
 # print qq(OTHER NODE $node\n); 
     }
   }
 
   unless (scalar @nodes > 0) { 
-    if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
-      push @nodes, qq({ "data" : { "id" : "GO:0000000", "name" : "Gene Ontology", "annotCounts" : "", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "nodeShape" : "rectangle" } }); } }
+    if ($fakeRootFlag) { 
+      if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
+        push @nodes, qq({ "data" : { "id" : "GO:0000000", "name" : "Gene Ontology", "annotCounts" : "", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" } }); } } }
+
+  unless (scalar @nodes > 0) { 
+    push @nodes, qq({ "data" : { "id" : "No Annotations", "name" : "No Annotations", "annotCounts" : "1", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" } }); }
 
   my $nodes = join",\n", @nodes; 
   print qq({ "elements" : {\n);
@@ -1167,19 +1216,30 @@ sub annotSummaryCytoscape {
   ($var, my $maxDepth)             = &getHtmlVar($query, 'maxDepth');
   ($var, my $nodeCountFlag)        = &getHtmlVar($query, 'nodeCountFlag');
   ($var, my $descriptionTerms)     = &getHtmlVar($query, 'descriptionTerms');
-  ($var, my $radio_iea)            = &getHtmlVar($query, 'radio_iea');
+  ($var, my $radio_etgo)           = &getHtmlVar($query, 'radio_etgo');
+  ($var, my $radio_etp)            = &getHtmlVar($query, 'radio_etp');
+  ($var, my $radio_etd)            = &getHtmlVar($query, 'radio_etd');
+  ($var, my $radio_eta)            = &getHtmlVar($query, 'radio_eta');
   ($var, my $root_bp)              = &getHtmlVar($query, 'root_bp');
   ($var, my $root_mf)              = &getHtmlVar($query, 'root_mf');
   ($var, my $root_cc)              = &getHtmlVar($query, 'root_cc');
   my $toPrint = ''; my $return = '';
-  my $checked_radio_withiea = 'checked="checked"'; my $checked_radio_excludeiea = ''; my $checked_radio_onlyiea = '';
-  if ($radio_iea eq 'radio_excludeiea') { $checked_radio_withiea = ''; $checked_radio_excludeiea = 'checked="checked"'; }
-    elsif ($radio_iea eq 'radio_onlyiea') { $checked_radio_withiea = ''; $checked_radio_onlyiea = 'checked="checked"'; }
+  my $checked_radio_etp_all      = 'checked="checked"'; my $checked_radio_etp_onlyrnai = '';    my $checked_radio_etp_onlyvariation = '';
+  if ($radio_etp eq 'radio_etp_onlyvariation') { $checked_radio_etp_all = ''; $checked_radio_etp_onlyvariation = 'checked="checked"'; }
+    elsif ($radio_etp eq 'radio_etp_onlyrnai') { $checked_radio_etp_all = ''; $checked_radio_etp_onlyrnai      = 'checked="checked"'; }
+  my $checked_radio_etd_all      = 'checked="checked"'; my $checked_radio_etd_excludeiea = '';    
+  if ($radio_etd eq 'radio_etd_excludeiea') { $checked_radio_etd_all = ''; $checked_radio_etd_excludeiea = 'checked="checked"'; }
+  my $checked_radio_etgo_withiea = 'checked="checked"'; my $checked_radio_etgo_excludeiea = ''; my $checked_radio_etgo_onlyiea = '';
+  if ($radio_etgo eq 'radio_etgo_excludeiea') {   $checked_radio_etgo_withiea = ''; $checked_radio_etgo_excludeiea = 'checked="checked"'; }
+    elsif ($radio_etgo eq 'radio_etgo_onlyiea') { $checked_radio_etgo_withiea = ''; $checked_radio_etgo_onlyiea    = 'checked="checked"'; }
+  my $checked_radio_eta_all      = 'checked="checked"'; my $checked_radio_eta_onlyexprcluster = '';    my $checked_radio_eta_onlyexprpattern = '';
+  if ($radio_eta eq 'radio_eta_onlyexprpattern') {      $checked_radio_eta_all = ''; $checked_radio_eta_onlyexprpattern = 'checked="checked"'; }
+    elsif ($radio_eta eq 'radio_eta_onlyexprcluster') { $checked_radio_eta_all = ''; $checked_radio_eta_onlyexprcluster = 'checked="checked"'; }
   my $checked_root_bp = ''; my $checked_root_cc = ''; my $checked_root_mf = ''; 
   my @roots;
   if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
      if ($all_roots eq 'all_roots') { 
-         $fakeRootFlag = 1; $filterLongestFlag = 1; $filterForLcaFlag = 1; $maxNodes = 0; $maxDepth = 0;
+         $fakeRootFlag = 0; $filterLongestFlag = 1; $filterForLcaFlag = 1; $maxNodes = 0; $maxDepth = 0;
          push @roots, "GO:0008150"; push @roots, "GO:0005575"; push @roots, "GO:0003674";
          $checked_root_bp = 'checked="checked"'; $checked_root_cc = 'checked="checked"'; $checked_root_mf = 'checked="checked"'; }
        else {
@@ -1196,7 +1256,7 @@ sub annotSummaryCytoscape {
     ($focusTermId) = $autocompleteValue =~ m/, (.*?),/;
   }
 
-  my $goslimButtons = 'Alliance Slim terms in graph:<br/>';
+  my $goslimButtons = '<a href="http://geneontology.org/docs/go-subset-guide/" target="_blank">Alliance Slim terms</a> in graph:<br/>';
   my ($goslimIdsRef) = &getGoSlimGoids($datatype);
   my %goslimIds = %$goslimIdsRef;
   foreach my $goid (sort keys %goslimIds) {
@@ -1206,7 +1266,13 @@ sub annotSummaryCytoscape {
     $goslimButtons .= qq($button);
   } # foreach my $goid (sort keys %goslimIds)
 
-  my $jsonUrl = 'soba_biggo.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype . '&radio_iea=' . $radio_iea . '&rootsChosen=' . $roots;
+# FIX
+
+  my $jsonUrl = 'soba_biggo.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
+  if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) { $jsonUrl .= '&radio_etgo=' . $radio_etgo . '&rootsChosen=' . $roots; }
+    elsif ($datatype eq 'phenotype') {                   $jsonUrl .= '&radio_etp='  . $radio_etp;                             }
+    elsif ($datatype eq 'disease') {                     $jsonUrl .= '&radio_etd='  . $radio_etd;                             }
+    elsif ($datatype eq 'anatomy') {                     $jsonUrl .= '&radio_eta='  . $radio_eta;                             }
   unless ($showControlsFlag) { $showControlsFlag = 0; }
   $jsonUrl .= "&showControlsFlag=$showControlsFlag";
   unless ($fakeRootFlag) { $fakeRootFlag = 0; }
@@ -1263,9 +1329,32 @@ Content-type: text/html\n
 
   Promise.all([ graphP ]).then(initCy);
 
+  function linkFromNode(nodeId) {		// generate url from datatype + nodeId
+    var linkout = 'http://amigo.geneontology.org/amigo/term/' + nodeId;
+    if ('$datatype' === 'anatomy') {          linkout = 'https://wormbase.org/species/all/anatomy_term/' + nodeId; }
+      else if ('$datatype' === 'disease') {   linkout = 'https://wormbase.org/resources/disease/' + nodeId;        }
+      else if ('$datatype' === 'go') {        linkout = 'https://wormbase.org/species/all/go_term/' + nodeId;      }
+      else if ('$datatype' === 'lifestage') { linkout = 'https://wormbase.org/species/all/life_stage/' + nodeId;   }
+      else if ('$datatype' === 'phenotype') { linkout = 'https://wormbase.org/species/all/phenotype/' + nodeId;    }
+      else if ('$datatype' === 'biggo') {     linkout = 'http://amigo.geneontology.org/amigo/term/' + nodeId;      }
+    return linkout;
+  }
+
   function initCy( then ){
     var elements = then[0].elements;
     \$('#controldiv').show(); \$('#loadingdiv').hide();	// show controls and hide loading when graph loaded
+    if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) {
+        \$('#trAllianceSlimWith').show(); 
+        \$('#trAllianceSlimWithout').show(); 
+        \$('#evidencetypego').show(); 
+        \$('#goSlimDiv').show(); 
+        \$('#rootschosen').show(); }
+      else if ( '$datatype' === 'disease') { 
+        \$('#evidencetypedisease').show(); }
+      else if ( '$datatype' === 'phenotype') { 
+        \$('#evidencetypephenotype').show(); }
+      else if ( '$datatype' === 'anatomy') { 
+        \$('#evidencetypeanatomy').show(); }
     var cyPhenGraph = window.cyPhenGraph = cytoscape({
       container: document.getElementById('cyPhenGraph'),
       layout: { name: 'dagre', padding: 10, nodeSep: 5 },
@@ -1320,9 +1409,11 @@ Content-type: text/html\n
 //         var maxOption = 7;
         var maxOption = then[0].elements.meta.fullDepth;
         document.getElementById('maxDepth').options.length = 0;
-        for( var i = 0; i <= maxOption; i++ ){
-          var label = i; if (i == 0) { label = 'max'; }
-          document.getElementById('maxDepth').options[i] = new Option(label, i, true, false) }
+        for( var i = 1; i <= maxOption; i++ ){
+          var label = i; 
+//           if ((i == 0) || (i == maxOption)) { label = 'max'; }
+          document.getElementById('maxDepth').options[i-1] = new Option(label, i, true, false) }
+        document.getElementById('maxDepth').selectedIndex = maxOption - 1;
         
         cyPhenGraph.on('tap', 'node', function(e){
           var node = e.cyTarget; 
@@ -1336,9 +1427,12 @@ Content-type: text/html\n
 
           var node = e.cyTarget;
           var nodeId   = node.data('id');
+          var objId    = node.data('objId');
           var nodeName = node.data('name');
           var annotCounts = node.data('annotCounts');
-          var qtipContent = annotCounts + '<br/><a target="_blank" href="http://amigo.geneontology.org/amigo/term/' + nodeId + '">' + nodeId + ' - ' + nodeName + '</a>';
+          var linkout = linkFromNode(objId);
+          var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
+//           var qtipContent = annotCounts + '<br/><a target="_blank" href="http://amigo.geneontology.org/amigo/term/' + nodeId + '">' + nodeId + ' - ' + nodeName + '</a>';
           node.qtip({
                position: {
                  my: 'top center',
@@ -1370,14 +1464,16 @@ Content-type: text/html\n
 
         cyPhenGraph.on('mouseover', 'node', function(event) {
             var node = event.cyTarget;
+            var objId    = node.data('objId');
             var nodeId   = node.data('id');
             var nodeName = node.data('name');
             var annotCounts = node.data('annotCounts');
-            var qtipContent = annotCounts + '<br/><a target="_blank" href="http://amigo.geneontology.org/amigo/term/' + nodeId + '">' + nodeId + ' - ' + nodeName + '</a>';
+            var linkout = linkFromNode(objId);
+            var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
             \$('#info').html( qtipContent );
         });
 
-// to fade out nodes on loading and remove buttons
+//  o fade out nodes on loading and remove buttons
         var nodes = cyPhenGraph.nodes();
         for( var i = 0; i < nodes.length; i++ ){
           var node     = nodes[i];
@@ -1398,7 +1494,7 @@ Content-type: text/html\n
            parentToChild[source].push(target);
            console.log('s ' + source + ' t ' + target); }
 
-        recurseChildren(parentToChild, 'GO:0000000');
+//         recurseChildren(parentToChild, 'GO:0000000');	// just to show stuff
         
 
         var nodeCount = cyPhenGraph.nodes().length;
@@ -1408,18 +1504,20 @@ Content-type: text/html\n
       }
 
     });
-  }
+  } // function initCy( then )
 
-  function recurseChildren(parentToChild, obj ){
-    for( var i = 0; i < parentToChild[obj].length; i++ ){
-      var newObj = parentToChild[obj][i];
-      console.log('parent ' + obj + ' child ' + newObj);
-      recurseChildren(parentToChild, newObj);
-    }
-  }
+// probably for debugging
+//   function recurseChildren(parentToChild, obj ){
+//     for( var i = 0; i < parentToChild[obj].length; i++ ){
+//       var newObj = parentToChild[obj][i];
+//       console.log('parent ' + obj + ' child ' + newObj);
+//       recurseChildren(parentToChild, newObj);
+//     }
+//   }
 
 
   \$('#radio_weighted').on('click', function(){
+console.log('radio_weighted');
     var nodes = cyPhenGraph.nodes();
     for( var i = 0; i < nodes.length; i++ ){
       var node     = nodes[i];
@@ -1432,6 +1530,7 @@ Content-type: text/html\n
     cyPhenGraph.layout();
   });
   \$('#radio_unweighted').on('click', function(){
+console.log('radio_unweighted');
     var nodes = cyPhenGraph.nodes();
     for( var i = 0; i < nodes.length; i++ ){
       var node     = nodes[i];
@@ -1464,14 +1563,18 @@ Content-type: text/html\n
     \$('#view_png_button').show();
     \$('#view_edit_button').hide();
   });
-  var updatingElements = ['radio_withiea', 'radio_excludeiea', 'radio_onlyiea', 'fakeRootFlag', 'filterForLcaFlag', 'filterLongestFlag', 'root_bp', 'root_cc', 'root_mf'];
+  var updatingElements = ['radio_etgo_withiea', 'radio_etgo_excludeiea', 'radio_etgo_onlyiea', 'radio_etd_all', 'radio_etd_excludeiea', 'radio_eta_all', 'radio_eta_onlyexprcluster', 'radio_eta_onlyexprpattern',  'radio_etp_all', 'radio_etp_onlyrnai', 'radio_etp_onlyvariation', 'fakeRootFlag', 'filterForLcaFlag', 'filterLongestFlag', 'root_bp', 'root_cc', 'root_mf'];
   updatingElements.forEach(function(element) {
     \$('#'+element).on('click', updateElements); });
   \$('#maxNodes').on('blur', updateElements);
   \$('#maxDepth').on('change', updateElements);
   function updateElements() {
     \$('#controldiv').hide(); \$('#loadingdiv').show();		// show loading and hide controls while graph loading
-    var radioExcludeIea = \$('input[name=radio_iea]:checked').val();
+    var radioEtgo = \$('input[name=radio_etgo]:checked').val();
+    var radioEtp  = \$('input[name=radio_etp]:checked').val();
+    var radioEtd  = \$('input[name=radio_etd]:checked').val();
+    var radioEta  = \$('input[name=radio_eta]:checked').val();
+console.log('radioEtp ' + radioEtp + ' end');
     var rootsPossible = ['root_bp', 'root_cc', 'root_mf'];
     var rootsChosen = [];
     var showControlsFlagValue = '0'; if (\$('#showControlsFlag').is(':checked')) { showControlsFlagValue = 1; }
@@ -1483,7 +1586,12 @@ Content-type: text/html\n
     rootsPossible.forEach(function(rootTerm) {
       if (document.getElementById(rootTerm).checked) { rootsChosen.push(document.getElementById(rootTerm).value); } });
     var rootsChosenGroup = rootsChosen.join(',');
-    var url = 'soba_biggo.cgi?action=annotSummaryJson&focusTermId=$focusTermId&datatype=$datatype&radio_iea=' + radioExcludeIea + '&rootsChosen=' + rootsChosenGroup + '&showControlsFlag=' + showControlsFlagValue + '&fakeRootFlag=' + fakeRootFlagValue + '&filterForLcaFlag=' + filterForLcaFlagValue + '&filterLongestFlag=' + filterLongestFlagValue + '&maxNodes=' + maxNodes + '&maxDepth=' + maxDepth;
+    var url = 'soba_biggo.cgi?action=annotSummaryJson&focusTermId=$focusTermId&datatype=$datatype';
+    if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) { url += '&radio_etgo=' + radioEtgo; }
+      else if ('$datatype' === 'phenotype') {                    url += '&radio_etp='  + radioEtp;  }
+      else if ('$datatype' === 'disease') {                      url += '&radio_etd='  + radioEtd;  }
+      else if ('$datatype' === 'anatomy') {                      url += '&radio_eta='  + radioEta;  }
+    url += '&rootsChosen=' + rootsChosenGroup + '&showControlsFlag=' + showControlsFlagValue + '&fakeRootFlag=' + fakeRootFlagValue + '&filterForLcaFlag=' + filterForLcaFlagValue + '&filterLongestFlag=' + filterLongestFlagValue + '&maxNodes=' + maxNodes + '&maxDepth=' + maxDepth;
     var graphPNew = \$.ajax({
       url: url,
       type: 'GET',
@@ -1492,9 +1600,9 @@ Content-type: text/html\n
     Promise.all([ graphPNew ]).then(newCy);
     function newCy( then ){
       var elementsNew = then[0].elements;
+      \$('#controldiv').show(); \$('#loadingdiv').hide();	// show controls and hide loading when graph loaded
       cyPhenGraph.json( { elements: elementsNew } );
       cyPhenGraph.elements().layout({ name: 'dagre', padding: 10, nodeSep: 5 });
-      \$('#controldiv').show(); \$('#loadingdiv').hide();	// show controls and hide loading when graph loaded
       var nodeCount = cyPhenGraph.nodes().length;
       if (\$('#fakeRootFlag').is(':checked')) { nodeCount--; }
       \$('#nodeCount').html('node count: ' + nodeCount + '<br/>');
@@ -1504,12 +1612,14 @@ Content-type: text/html\n
       var maxDepthElement = document.getElementById('maxDepth');
       var userSelectedValue = maxDepthElement.options[maxDepthElement.selectedIndex].value;
       maxDepthElement.options.length = 0;
-      for( var i = 0; i <= maxOption; i++ ){
-        var label = i; if (i == 0) { label = 'max'; }
-        maxDepthElement.options[i] = new Option(label, i, true, false) }
+      for( var i = 1; i <= maxOption; i++ ){
+        var label = i; 
+//         if ((i == 0) || (i == maxOption)) { label = 'max'; }
+        maxDepthElement.options[i-1] = new Option(label, i, true, false) }
+      maxDepthElement.selectedIndex = maxOption - 1;
       maxDepthElement.value = userSelectedValue;
     }
-  }
+  } // function updateElements()
 
 
 });
@@ -1542,31 +1652,56 @@ Content-type: text/html\n
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
     <polygon fill="none" stroke="blue" stroke-dasharray="5,2" points="36,-36 0,-36 0,-0 36,-0 36,-36"/></g></g></svg></td><td valign="center">Root</td></tr>
+
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
     <ellipse fill="none" stroke="blue" stroke-dasharray="5,2" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">Without Direct Annotation</td></tr>
+
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
     <ellipse fill="none" stroke="red" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">With Direct Annotation</td></tr>
+
+    <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0 0 292.64526 63.826207">
+    <defs><marker id="marker4922" style="overflow:visible"> <path style="fill:#949494;fill-opacity:1;fill-rule:evenodd;stroke:#5f5f5f;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1" d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z" transform="matrix(-1.1,0,0,-1.1,-1.1,0)" /> </marker> </defs>
+    <g transform="translate(-151.41157,-412.12323)"> <path style="fill:#949494;fill-opacity:1;fill-rule:evenodd;stroke:#5f5f5f;stroke-width:6.69999981;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker4922)" d="m 151.42857,445.21935 281.42857,-1.42857" /></g>
+    </svg></td><td valign="center">Inference Direction</td></tr>
+
     <!--<tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g class="graph" transform="scale(1 1) rotate(0) translate(4 40)"> <polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /> <g class="node" style="fill:#ff0000;fill-opacity:1" transform="translate(0,-19.2)"> <path d="M 35.99863,-0.58027907 A 18,18 0 0 1 27.088325,15.178899 18,18 0 0 1 8.9846389,15.221349 18,18 0 0 1 5.2625201e-4,-0.49586946" transform="scale(1,-1)" /> </g> <path style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:1;stroke-dasharray:5, 2" d="m 36.07799,-18.703936 a 18,18 0 0 1 -9.000001,15.5884578 18,18 0 0 1 -17.9999999,-4e-7 18,18 0 0 1 -8.99999952,-15.5884574" /> </g> </svg></td><td valign="center">AGR Slim terms</td></tr>-->
-    <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)" class="graph"> <g> <polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /> <path style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:1;stroke-dasharray:5, 2" d="m 36.07799,-18.703936 a 18,18 0 0 1 -9.000001,15.5884578 18,18 0 0 1 -17.9999999,-4e-7 18,18 0 0 1 -8.99999952,-15.5884574" /> <path d="m 36.07799,-18.658475 a 18,18 0 0 0 -9.000001,-15.588458 18,18 0 0 0 -17.9999999,10e-7 18,18 0 0 0 -8.99999952,15.588457" style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:1;stroke-dasharray:5, 2" /> </g> </g> </svg></td><td valign="center">Alliance Slim Without Direct Annotation</td></tr>
-    <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)" class="graph"> <g> <polygon fill="white" points="-4,4 -4,-40 40,-40 40,4 -4,4" /> <g transform="translate(9.3220339,20.881356)" > <g class="node" style="fill:#ff0000;fill-opacity:1" transform="translate(-7.2711864,-38.962711)" > <path d="M 35.99863,-0.58027907 A 18,18 0 0 1 27.088325,15.178899 18,18 0 0 1 8.9846389,15.221349 18,18 0 0 1 5.2625201e-4,-0.49586946" transform="scale(1,-1)" /> </g> <g transform="matrix(1,0,0,-1,-7.2711865,-37.939458)" style="fill:#ff0000;fill-opacity:1" class="node"> <path transform="scale(1,-1)" d="M 35.99863,-0.58027907 A 18,18 0 0 1 27.088325,15.178899 18,18 0 0 1 8.9846389,15.221349 18,18 0 0 1 5.2625201e-4,-0.49586946" /> </g> </g> </svg></td><td valign="center">Alliance Slim With Direct Annotation</td></tr>
+
+    <tr id="trAllianceSlimWithout" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"> <polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#9494ff;fill-opacity:1"><ellipse style="fill:#9494ff;fill-opacity:1" ry="18" rx="18" cy="-18" cx="18" stroke-dasharray="5,2" stroke="blue" fill="none" /></g></g></svg></td><td valign="center">Alliance Slim Without Direct Annotation</td></tr>
+
+    <tr id="trAllianceSlimWith" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"><polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#ffaaaa"><ellipse style="fill:#ffaaaa" ry="18" rx="18" cy="-18" cx="18" stroke="red" fill="none" /></g></g></svg></td><td valign="center">Alliance Slim With Direct Annotation</td></tr>
+
     </table></div>
     <form method="get" action="soba_biggo.cgi">
       <div id="weightstate" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
         <input type="radio" name="radio_type" id="radio_weighted"   checked="checked" >Annotation weighted</input><br/>
         <input type="radio" name="radio_type" id="radio_unweighted">Annotation unweighted</input><br/>
       </div><br/>
-      <div id="ieastate" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
-        <input type="radio" name="radio_iea" id="radio_withiea"    value="radio_withiea"    $checked_radio_withiea >all evidence types</input><br/>
-        <input type="radio" name="radio_iea" id="radio_excludeiea" value="radio_excludeiea" $checked_radio_excludeiea >exclude IEA</input><br/>
-        <input type="radio" name="radio_iea" id="radio_onlyiea"    value="radio_onlyiea"    $checked_radio_onlyiea >experimental evidence only</input><br/>
+      <div id="evidencetypeanatomy" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
+        <input type="radio" name="radio_eta"  id="radio_eta_all"             value="radio_eta_all"             $checked_radio_eta_all >all evidence types</input><br/>
+        <input type="radio" name="radio_eta"  id="radio_eta_onlyexprcluster" value="radio_eta_onlyexprcluster" $checked_radio_eta_onlyexprcluster >only expression cluster</input><br/>
+        <input type="radio" name="radio_eta"  id="radio_eta_onlyexprpattern" value="radio_eta_onlyexprpattern" $checked_radio_eta_onlyexprpattern >only expression pattern</input><br/>
       </div><br/>
-      <div id="rootschosen" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
+      <div id="evidencetypephenotype" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
+        <input type="radio" name="radio_etp"  id="radio_etp_all"           value="radio_etp_all"           $checked_radio_etp_all >all evidence types</input><br/>
+        <input type="radio" name="radio_etp"  id="radio_etp_onlyrnai"      value="radio_etp_onlyrnai"      $checked_radio_etp_onlyrnai >only rnai</input><br/>
+        <input type="radio" name="radio_etp"  id="radio_etp_onlyvariation" value="radio_etp_onlyvariation" $checked_radio_etp_onlyvariation >only variation</input><br/>
+      </div><br/>
+      <div id="evidencetypedisease" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
+        <input type="radio" name="radio_etd" id="radio_etd_all"        value="radio_etd_all"        $checked_radio_etd_all ><a href="http://geneontology.org/docs/guide-go-evidence-codes/" target="_blank">all evidence types</a></input><br/>
+        <input type="radio" name="radio_etd" id="radio_etd_excludeiea" value="radio_etd_excludeiea" $checked_radio_etd_excludeiea >exclude IEA</input><br/>
+      </div><br/>
+      <div id="evidencetypego" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
+        <input type="radio" name="radio_etgo" id="radio_etgo_withiea"    value="radio_etgo_withiea"    $checked_radio_etgo_withiea ><a href="http://geneontology.org/docs/guide-go-evidence-codes/" target="_blank">all evidence types</a></input><br/>
+        <input type="radio" name="radio_etgo" id="radio_etgo_excludeiea" value="radio_etgo_excludeiea" $checked_radio_etgo_excludeiea >exclude IEA</input><br/>
+        <input type="radio" name="radio_etgo" id="radio_etgo_onlyiea"    value="radio_etgo_onlyiea"    $checked_radio_etgo_onlyiea >experimental evidence only</input><br/>
+      </div><br/>
+      <div id="rootschosen" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="checkbox" name="root_bp" id="root_bp" value="GO:0008150" $checked_root_bp >Biological Process</input><br/>
         <input type="checkbox" name="root_cc" id="root_cc" value="GO:0005575" $checked_root_cc >Cellular Component</input><br/>
         <input type="checkbox" name="root_mf" id="root_mf" value="GO:0003674" $checked_root_mf >Molecular Function</input><br/>
@@ -1583,7 +1718,7 @@ Content-type: text/html\n
       </div>
     </form>
     <div id="info" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">Mouseover or click node for more information.</div><br/>
-    $goslimButtons<br/>
+    <div id="goSlimDiv" style="display: none">$goslimButtons</div><br/>
   </div>
 </div>
 EndOfText
