@@ -49,9 +49,9 @@ my %paths;	# finalpath => array of all (array of nodes of paths that end)
 		# childToParent -> child node -> parent node => relationship
 		# # parentToChild -> parent node -> child node => relationship
 
-  my %nodesAll;								# for an annotated phenotype ID, all nodes in its topological map that have transitivity
-  my %edgesAll;								# for an annotated phenotype ID, all edges in its topological map that have transitivity
-  my %ancestorNodes;
+my %nodesAll;								# for an annotated phenotype ID, all nodes in its topological map that have transitivity
+my %edgesAll;								# for an annotated phenotype ID, all edges in its topological map that have transitivity
+my %ancestorNodes;
 
 &process();
 
@@ -179,7 +179,7 @@ sub solrSearch {
     if (scalar (@{ $jsonHash{"response"}{"docs"} }) >= $max_results) { $$matchesHashref{"more results not shown; narrow your search"}++; }
   } # if (scalar keys %matches < $max_results)
   return $matchesHashref;
-}
+} # sub solrSearch
 
 
 sub frontPage {
@@ -262,69 +262,6 @@ EndOfText
   print qq(</body></html>);
 } # sub frontPage
 
-sub makeInputField {
-  my ($current_value, $table, $order, $colspan, $rowspan, $class, $td_width, $input_size) = @_;
-  unless ($current_value) { $current_value = ''; }
-  my $freeForced = 'free';
-  my $containerSpanId = "container${freeForced}${table}${order}AutoComplete";
-  my $divAutocompleteId = "${freeForced}${table}${order}AutoComplete";
-  my $inputId = "input_${table}_$order";
-  my $divContainerId = "${freeForced}${table}${order}Container";
-  my $data = "<td width=\"$td_width\" class=\"$class\" rowspan=\"$rowspan\" colspan=\"$colspan\">
-  <span id=\"$containerSpanId\">
-  <div id=\"$divAutocompleteId\" class=\"div-autocomplete\">
-  <input id=\"$inputId\" name=\"$inputId\" size=\"$input_size\" value=\"$current_value\">
-  <div id=\"$divContainerId\"></div></div></span>
-  </td>";
-  return $data;
-} # sub makeInputField
-
-
-
-sub getSolrUrl {
-  my ($focusTermId) = @_;
-  my ($identifierType) = $focusTermId =~ m/^(\w+):/;
-  my %idToSubdirectory;
-  $idToSubdirectory{"WBbt"}        = "anatomy";
-  $idToSubdirectory{"DOID"}        = "disease";
-  $idToSubdirectory{"GO"}          = "go";
-  $idToSubdirectory{"WBls"}        = "lifestage";
-  $idToSubdirectory{"WBPhenotype"} = "phenotype";
-  my $solr_url = $base_solr_url . '/';
-} # sub getSolrUrl
-
-sub getTopoHash {
-  my ($focusTermId) = @_;
-  my ($solr_url) = &getSolrUrl($focusTermId);
-  my $url = $solr_url . "select?qt=standard&fl=*&version=2.2&wt=json&indent=on&rows=1&q=id:%22" . $focusTermId . "%22&fq=document_category:%22ontology_class%22";
-  
-  my $page_data = get $url;
-  
-  my $perl_scalar = $json->decode( $page_data );
-  my %jsonHash = %$perl_scalar;
-
-  my $topoHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"topology_graph_json"} );
-  my $transHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"regulates_transitivity_graph_json"} );	# need this for inferred Tree View
-  return ($topoHashref, $transHashref);
-} # sub getTopoHash
-
-sub getTopoChildrenParents {
-  my ($focusTermId, $topoHref) = @_;
-  my %topo = %$topoHref;
-  my %children; 			# children of the wanted focusTermId, value is relationship type (predicate) ; are the corresponding nodes on an edge where the object is the focusTermId
-  my %parents;				# direct parents of the wanted focusTermId, value is relationship type (predicate) ; are the corresponding nodes on an edge where the subject is the focusTermId
-  my %child;				# for any term, each subkey is a child
-  my (@edges) = @{ $topo{"edges"} };
-  for my $index (0 .. @edges) {
-    my ($sub, $obj, $pred) = ('', '', '');
-    if ($edges[$index]{'sub'}) { $sub = $edges[$index]{'sub'}; }
-    if ($edges[$index]{'obj'}) { $obj = $edges[$index]{'obj'}; }
-    if ($edges[$index]{'pred'}) { $pred = $edges[$index]{'pred'}; }
-    if ($obj eq $focusTermId) { $children{$sub} = $pred; }		# track children here
-    if ($sub eq $focusTermId) { $parents{$obj}  = $pred; }		# track parents here
-  }
-  return (\%children, \%parents);
-} # sub getTopoChildrenParents
 
 sub calcNodeWidth {
   my ($nodeCount, $maxAnyCount) = @_;
@@ -348,170 +285,6 @@ sub getDiffTime {
 } # sub getDiffTime
 
 
-
-
-sub populateGeneNamesFromFlatfile {
-  my %geneNameToId; my %geneIdToName;
-  my $infile = '/home/azurebrd/cron/gin_names/gin_names.txt';
-  open (IN, "<$infile") or die "Cannot open $infile : $!";
-  while (my $line = <IN>) {
-    chomp $line;
-    my ($id, $name, $primary) = split/\t/, $line;
-    if ($primary eq 'primary') { $geneIdToName{$id}     = $name; }
-    my ($lcname)           = lc($name);
-    $geneNameToId{$lcname} = $id; }
-  close (IN) or die "Cannot close $infile : $!";
-  return (\%geneNameToId, \%geneIdToName);
-} # sub populateGeneNamesFromFlatfile
-
-sub calculateNodesAndEdgesAMIGO {
-  my ($focusTermId, $datatype) = @_;
-  unless ($datatype) { $datatype = 'phenotype'; }			# later will need to change based on different datatypes
-  my $toReturn = '';
-#   my ($solr_url) = &getSolrUrl($focusTermId);
-  my $solr_url = $base_solr_url . 'phenotype/';
-    # link 1, from wbgene get wbphenotypes from   "grouped":{ "annotation_class":{ "matches":12, "ngroups":4, "groups":[{ "groupValue":"WBPhenotype:0000674", # }]}}
-
-  my $rootId = 'WBPhenotype:0000886';
-  if ($datatype eq 'phenotype') { $rootId = 'WBPhenotype:0000886'; }
-
-  my %allLca;								# all nodes that are LCA to any pair of annotated terms
-  my %nodes;
-  my %edgesPtc;								# edges from parent to child
-
-  my $nodeWidth    = 1;
-  my $weightedNodeWidth    = 1;
-  my $unweightedNodeWidth  = 1;
-  my %annotationCounts;							# get annotation counts from evidence type
-  my %phenotypes; my @annotPhenotypes;					# array of annotated terms to loop and do pairwise comparisons
-  my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22WB:' . $focusTermId . '%22';
-  my $page_data   = get $annotation_count_solr_url;                                           # get the URL
-  my $perl_scalar = $json->decode( $page_data );                        # get the solr data
-  my %jsonHash    = %$perl_scalar;
-  foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
-      my $phenotype = $$doc{'annotation_class'};
-      $phenotypes{$phenotype}++;
-      my $id = $$doc{'id'};
-      my $varCount = 0; my $rnaiCount = 0;
-      if ($id =~ m/WB:WBVar\d+/) {  my (@wbvar)  = $id =~ m/(WB:WBVar\d+)/g;  $varCount  = scalar @wbvar;  }
-      if ($id =~ m/WB:WBRNAi\d+/) { my (@wbrnai) = $id =~ m/(WB:WBRNAi\d+)/g; $rnaiCount = scalar @wbrnai; }
-      foreach my $phenotype (@{ $$doc{'regulates_closure'} }) {
-        if ($varCount) {  for (1 .. $varCount) {  $annotationCounts{$phenotype}{'any'}++; $annotationCounts{$phenotype}{'Allele'}++; 
-                                                  $nodes{$phenotype}{'counts'}{'any'}++;  $nodes{$phenotype}{'counts'}{'Allele'}++;  } }
-        if ($rnaiCount) { for (1 .. $rnaiCount) { $annotationCounts{$phenotype}{'any'}++; $annotationCounts{$phenotype}{'RNAi'}++;     
-                                                  $nodes{$phenotype}{'counts'}{'any'}++;  $nodes{$phenotype}{'counts'}{'RNAi'}++;    } }
-      }
-  }
-  foreach my $phenotypeId (sort keys %phenotypes) {
-    push @annotPhenotypes, $phenotypeId;
-    my $phenotype_solr_url = $solr_url . 'select?qt=standard&fl=regulates_transitivity_graph_json,topology_graph_json&version=2.2&wt=json&indent=on&rows=1&fq=-is_obsolete:true&fq=document_category:%22ontology_class%22&q=id:%22' . $phenotypeId . '%22';
-
-    my $page_data   = get $phenotype_solr_url;                                           # get the URL
-    my $perl_scalar = $json->decode( $page_data );                        # get the solr data
-    my %jsonHash    = %$perl_scalar;
-    my $gviz        = GraphViz2->new(concentrate => 'concentrate');      # generate graphviz for main markup
-    my $transHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"regulates_transitivity_graph_json"} );
-    my %transHash = %$transHashref;
-    my (@nodes)   = @{ $transHash{"nodes"} };
-    my %transNodes;							# track transitivity nodes as nodes to keep from topology data
-    for my $index (0 .. @nodes) { if ($nodes[$index]{'id'}) { my $id  = $nodes[$index]{'id'};  $transNodes{$id}++; } }
-
-    my $topoHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"topology_graph_json"} );
-    my %topoHash = %$topoHashref;
-    my (@edges)   = @{ $topoHash{"edges"} };
-    for my $index (0 .. @edges) {                                       # for each edge, add to graph
-      my ($sub, $obj, $pred) = ('', '', '');                            # subject object predicate from topology_graph_json
-      if ($edges[$index]{'sub'}) {  $sub  = $edges[$index]{'sub'};  }
-      if ($edges[$index]{'obj'}) {  $obj  = $edges[$index]{'obj'};  }
-      next unless ( ($transNodes{$sub}) && ($transNodes{$obj}) );
-      if ($edges[$index]{'pred'}) { $pred = $edges[$index]{'pred'}; }
-      my $direction = 'back'; my $style = 'solid';                      # graph arror direction and style
-      if ($sub && $obj && $pred) {                                      # if subject + object + predicate
-        $edgesAll{$phenotypeId}{$sub}{$obj}++;				# for an annotated term's edges, each child to its parents
-        $edgesPtc{$obj}{$sub}++;					# any existing edge, parent to child
-      } # if ($sub && $obj && $pred)
-    } # for my $index (0 .. @edges)
-    my (@nodes)   = @{ $topoHash{"nodes"} };
-    for my $index (0 .. @nodes) {                                       # for each node, add to graph
-      my ($id, $lbl) = ('', '');                                        # id and label
-      if ($nodes[$index]{'id'}) {  $id  = $nodes[$index]{'id'};  }
-      if ($nodes[$index]{'lbl'}) { $lbl = $nodes[$index]{'lbl'}; }
-      next unless ($id);
-      $nodes{$id}{label} = $lbl;
-      next unless ($transNodes{$id});
-#       $lbl =~ s/ /<br\/>/g;                                                # replace spaces with html linebreaks in graph for more-square boxes
-      my $label = "$lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
-      if ($annotationCounts{$id}) { 					# if there are annotation counts to variation and/or rnai, add them to the box
-        my @annotCounts;
-        foreach my $evidenceType (sort keys %{ $annotationCounts{$id} }) {
-          next if ($evidenceType eq 'any');				# skip 'any', only used for relative size to max value
-          push @annotCounts, qq($annotationCounts{$id}{$evidenceType} $evidenceType); }
-        my $annotCounts = join"; ", @annotCounts;
-        $label = qq(LINEBREAK<br\/>$label<br\/><font color="transparent">$annotCounts<\/font>);				# add html line break and annotation counts to the label
-      }
-      if ($id && $lbl) { 
-        $nodesAll{$phenotypeId}{$id} = $lbl;
-      }
-    }
-  } # foreach my $phenotype (sort keys %phenotypes)
-
-  while (@annotPhenotypes) {
-    my $ph1 = shift @annotPhenotypes;					# compare each annotated term node to all other annotated term nodes
-    my $url = "http://www.wormbase.org/species/all/phenotype/$ph1";                              # URL to link to wormbase page for object
-    my $xlabel = $ph1; 	# FIX
-    $nodes{$ph1}{annot}++;
-    foreach my $ph2 (@annotPhenotypes) {				# compare each annotated term node to all other annotated term nodes
-      my $lcaHashref = &calculateLCA($ph1, $ph2);
-      my %lca = %$lcaHashref;
-      foreach my $lca (sort keys %lca) {
-        $url = "http://www.wormbase.org/species/all/phenotype/$lca";                              # URL to link to wormbase page for object
-        $allLca{$lca}++;
-        unless ($phenotypes{$lca}) { 					# only add lca nodes that are not annotated terms
-          $xlabel = $lca; 					# FIX
-          $nodes{$lca}{lca}++;
-        }
-      } # foreach my $lca (sort keys %lca)
-    } # foreach my $ph2 (@annotPhenotypes)				# compare each annotated term node to all other annotated term nodes
-  } # while (@annotPhenotypes)
-
-  my %edgesLca;								# edges that exist in graph generated from annoated terms + lca terms + root
-  my @parentNodes = ($rootId);						# nodes that are parents, at first root, later any nodes that should be in graph
-  while (@parentNodes) {						# while there are parent nodes, go through them
-    my $parent = shift @parentNodes;					# take a parent
-    my %edgesPtcCopy = %{ dclone(\%edgesPtc) };				# make a temp copy since edges will be getting deleted per parent
-    while (scalar keys %{ $edgesPtcCopy{$parent} } > 0) {		# while parent has children
-      foreach my $child (sort keys %{ $edgesPtcCopy{$parent} }) {	# each child of parent
-        if ($allLca{$child} || $phenotypes{$child}) { 			# good node, keep edge when child is an lca or annotated term
-            delete $edgesPtcCopy{$parent}{$child};			# remove from %edgesPtc, does not need to be checked further
-            push @parentNodes, $child;					# child is a good node, add to parent list to check its children
-            $edgesLca{$parent}{$child}++; }				# add parent-child edge to final graph
-          else {							# bad node, remove and reconnect edges
-            delete $edgesPtcCopy{$parent}{$child};			# remove parent-child edge
-            foreach my $grandchild (sort keys %{ $edgesPtcCopy{$child} }) {	# take each grandchild of child
-              delete $edgesPtcCopy{$child}{$grandchild};		# remove child-grandchild edge
-              $edgesPtcCopy{$parent}{$grandchild}++; } }		# make replacement edge between parent and grandchild
-      } # foreach my $child (sort keys %{ $edgesPtcCopy{$parent} })
-    } # while (scalar keys %{ $edgesPtcCopy{$parent} } > 0)
-  } # while (@parentNodes)
-  foreach my $parent (sort keys %edgesLca) {
-    my $parent_placeholder = $parent;
-    $parent_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-    foreach my $child (sort keys %{ $edgesLca{$parent} }) {
-      my $child_placeholder = $child;
-      $child_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-#       $toReturn .= qq(EDGE $parent TO $child E<br/>\n);
-#       $gviz_lca_edges->add_edge(from => "$parent_placeholder", to => "$child_placeholder", dir => "$direction", color => "$edgecolor", fontcolor => "$edgecolor", style => "$style", arrowsize => ".3"); 
-#       $gviz_lca_unweighted->add_edge(from => "$parent_placeholder", to => "$child_placeholder", dir => "$direction", color => "$edgecolor", fontcolor => "$edgecolor", style => "$style", arrowsize => ".3"); 
-#       $gviz_homogeneous->add_edge(from => "$parent_placeholder", to => "$child_placeholder", dir => "$direction", color => "$edgecolor", fontcolor => "$edgecolor", style => "$style", arrowsize => ".3"); 
-    } # foreach my $child (sort keys %{ $edgesLca{$parent} })
-  } # foreach my $parent (sort keys %edgesLca)
-
-#   foreach my $node (sort keys %nodes) {
-#     if ($nodes{$node}{annot}) {    $toReturn .= qq($node annot<br/>); }
-#       elsif ($nodes{$node}{lca}) { $toReturn .= qq($node lca<br/>); }
-#   }
-  return ($toReturn, \%nodes, \%edgesLca);
-} # sub calculateNodesAndEdgesAMIGO
 
 sub calculateNodesAndEdges {
   my ($focusTermId, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes) = @_;
@@ -541,31 +314,6 @@ sub calculateNodesAndEdges {
   my $weightedNodeWidth    = 1;
   my $unweightedNodeWidth  = 1;
 
-
-# AMIGO
-#   my %annotationCounts;							# get annotation counts from evidence type
-#   my %phenotypes; my @annotPhenotypes;					# array of annotated terms to loop and do pairwise comparisons
-#   my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $focusTermId . '%22';
-#   print qq( annotation_count_solr_url $annotation_count_solr_url\n);                                           # get the URL
-#   my $page_data   = get $annotation_count_solr_url;                                           # get the URL
-#   my $perl_scalar = $json->decode( $page_data );                        # get the solr data
-#   my %jsonHash    = %$perl_scalar;
-#   foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
-#       my $phenotype = $$doc{'annotation_class'};
-#       $phenotypes{$phenotype}++;
-#       my $id = $$doc{'id'};
-#       my $varCount = 0; my $rnaiCount = 0;
-#       if ($id =~ m/WB:WBVar\d+/) {  my (@wbvar)  = $id =~ m/(WB:WBVar\d+)/g;  $varCount  = scalar @wbvar;  }
-#       if ($id =~ m/WB:WBRNAi\d+/) { my (@wbrnai) = $id =~ m/(WB:WBRNAi\d+)/g; $rnaiCount = scalar @wbrnai; }
-#       foreach my $phenotype (@{ $$doc{'regulates_closure'} }) {
-#         if ($varCount) {  for (1 .. $varCount) {  $annotationCounts{$phenotype}{'any'}++; $annotationCounts{$phenotype}{'Allele'}++; 
-#                                                   $nodes{$phenotype}{'counts'}{'any'}++;  $nodes{$phenotype}{'counts'}{'Allele'}++;  } }
-#         if ($rnaiCount) { for (1 .. $rnaiCount) { $annotationCounts{$phenotype}{'any'}++; $annotationCounts{$phenotype}{'RNAi'}++;     
-#                                                   $nodes{$phenotype}{'counts'}{'any'}++;  $nodes{$phenotype}{'counts'}{'RNAi'}++;    } }
-#       }
-#   }
-
-# BIGGO
   my %annotationCounts;							# get annotation counts from evidence type
   my %phenotypes; my @annotPhenotypes;					# array of annotated terms to loop and do pairwise comparisons
   my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $focusTermId . '%22';
@@ -732,16 +480,6 @@ sub calculateNodesAndEdges {
     } # while (scalar keys %{ $edgesPtcCopy{$parent} } > 0)
   } # while (@parentNodes)
 
-# don't think this does anything, did before for svg at some point
-#   foreach my $parent (sort keys %edgesLca) {
-#     my $parent_placeholder = $parent;
-#     $parent_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-#     foreach my $child (sort keys %{ $edgesLca{$parent} }) {
-#       my $child_placeholder = $child;
-#       $child_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-#     } # foreach my $child (sort keys %{ $edgesLca{$parent} })
-#   } # foreach my $parent (sort keys %edgesLca)
-
   return ($toReturn, \%nodes, \%edgesLca);
 } # sub calculateNodesAndEdges
 
@@ -815,34 +553,6 @@ sub annotSummaryJsonCode {
       $rootNodes{'GO:0000000'}++; } }
   my $diameterMultiplier = 60;
 
-# Original Max Nodes way
-#   if ($maxNodes) {							# only show up to maxNodes amount of nodes
-#     my $count = 0;
-#     my %tempNodes; my %tempEdges;
-#     my (@parentNodes) = split/,/, $rootsChosen;
-#     if ($fakeRootFlag) { @parentNodes = ( 'GO:0000000' ); $maxNodes++; }
-#     
-#     foreach my $node (@parentNodes) {
-#       $count++;
-#       foreach my $type (keys %{ $nodes{$node} }) {
-#         $tempNodes{$node}{$type} = $nodes{$node}{$type}; } }
-#     while ( (scalar @parentNodes > 0) && ($count < $maxNodes) ) {						# while there are parent nodes, go through them
-#       my $parent = shift @parentNodes;					# take a parent
-#       foreach my $child (sort keys %{ $edgesLca{$parent} }) {		# each child of parent
-#         $count++;
-#         foreach my $type (keys %{ $nodes{$child} }) {
-#           $tempNodes{$child}{$type} = $nodes{$child}{$type}; }
-#         push @parentNodes, $child;					# child is a good node, add to parent list to check its children
-#         $tempEdges{$parent}{$child}++;					# add parent-child edge to final graph
-#       } # foreach my $child (sort keys %{ $edgesPtcCopy{$parent} })
-#     } # while (@parentNodes)
-#     %nodes = %{ dclone(\%tempNodes) };
-#     %edgesLca = %{ dclone(\%tempEdges) };
-#   } # if ($maxNodes)
-
-#   my %edgesLcaAllTrimmed = %{ dclone(\%edgesLca) };			# all edges after trimming, before lopping
-
-
   my %edgesFromLongest;							# find edges that belong to the longest path from all nodes to each of their children (to remove indirect nodes, like a grandchild directly to the grandparent, bypassing the parent)
   foreach my $source (sort keys %nodes) {				# for all nodes, calculate longest paths to each child and add to %edgesFromLongest
     foreach my $target (sort keys %{ $edgesLca{$source } }) {
@@ -907,45 +617,6 @@ sub annotSummaryJsonCode {
     %nodes = %{ dclone(\%lastGoodNodes) };
     %edgesLca = %{ dclone(\%lastGoodEdges) };
   } # if ($maxNodes)
-
-# original max depth calculating to max depth and no further, not calculating full depth
-#   if ($maxDepth) {
-#     my $nodeDepth = 1;
-#     my %tempNodes; my %tempEdges;
-#     my %lastGoodNodes; my %lastGoodEdges;
-#     my (@parentNodes) = split/,/, $rootsChosen;
-#     if ($fakeRootFlag) { @parentNodes = ( 'GO:0000000' ); $nodeDepth = 0; }
-#     
-#     foreach my $node (@parentNodes) {
-#       foreach my $type (keys %{ $nodes{$node} }) {
-#         $tempNodes{$node}{$type} = $nodes{$node}{$type}; } }
-#     my @nextLayerParentNodes = ();
-#     while ( (scalar @parentNodes > 0) && ($nodeDepth < $maxDepth) ) {						# while there are parent nodes, go through them
-# # print qq(MAX DEPTH $maxDepth<BR>\n);
-# # print qq(NODE DEPTH $nodeDepth<BR>\n);
-#       my $parent = shift @parentNodes;					# take a parent
-#       foreach my $child (sort keys %{ $edgesLca{$parent} }) {		# each child of parent
-#         $tempEdges{$parent}{$child}++;					# add parent-child edge to final graph
-#         next if (exists $tempNodes{$child});				# skip children already added through other parent
-# #         $count++;
-# #         if ($parent eq 'GO:0000000') { $count--; }			# never count nodes attached to fake root
-# # print qq(NODE CHILD $child PARENT $parent COUNT $count\n);
-#         foreach my $type (keys %{ $nodes{$child} }) {
-#           $tempNodes{$child}{$type} = $nodes{$child}{$type}; }
-#         push @nextLayerParentNodes, $child;					# child is a good node, add to parent list to check its children
-#       } # foreach my $child (sort keys %{ $edgesLca{$parent} }) 
-#       if ( (scalar @parentNodes == 0) && ($nodeDepth < $maxDepth) ) {
-#         $nodeDepth++;
-#         @parentNodes = @nextLayerParentNodes;
-#         @nextLayerParentNodes = ();
-# #         print qq(NODE COUNT $count\n);
-#         %lastGoodNodes = %{ dclone(\%tempNodes) };
-#         %lastGoodEdges = %{ dclone(\%tempEdges) };
-#       }
-#     } # while (@parentNodes)
-#     %nodes = %{ dclone(\%lastGoodNodes) };
-#     %edgesLca = %{ dclone(\%lastGoodEdges) };
-#   }
 
   my $fullDepthFlag = 1;						# calculate the full depth from the graph after lca and longest path
   my $fullDepth = 10;							# initialize to some large depth just in case
@@ -1055,8 +726,10 @@ sub annotSummaryJsonCode {
       push @edges, qq({ "data" : { "id" : "$name", "weight" : 1, "source" : "$cSourceColonless", "target" : "$cTargetColonless", "lineColor" : "$lineColor" } }); } }
   my $edges = join",\n", @edges; 
 
-  my ($goslimIdsRef) = &getGoSlimGoids($datatype);
-  my %goslimIds = %$goslimIdsRef;
+  my %goslimIds;
+  if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
+    my ($goslimIdsRef) = &getGoSlimGoids($datatype);
+    %goslimIds = %$goslimIdsRef; }
 
   foreach my $node (sort keys %nodes) {
     next unless ( ($nodesWithEdges{$node}) || ($maxDepth == 1) );	# nodes must have an edge unless the depth is only 1
@@ -1157,7 +830,7 @@ sub recurseAncestorsToAddEdges {		# for a given node in the graph after longest 
         return $tempEdgesHref; }
   }
   return \%tempEdges;
-}
+} # sub recurseAncestorsToAddEdges 
 
 
 sub getGoSlimGoids {
@@ -1230,14 +903,17 @@ sub annotSummaryCytoscape {
   }
 
   my $goslimButtons = '<a href="http://geneontology.org/docs/go-subset-guide/" target="_blank">Alliance Slim terms</a> in graph:<br/>';
-  my ($goslimIdsRef) = &getGoSlimGoids($datatype);
-  my %goslimIds = %$goslimIdsRef;
-  foreach my $goid (sort keys %goslimIds) {
-    my $goname = $goslimIds{$goid};
-#     $goid =~ s/GO://;
-    my $button      = qq(<span id="$goid" style="display: none">- $goname<br/></span>);
-    $goslimButtons .= qq($button);
-  } # foreach my $goid (sort keys %goslimIds)
+  my %goslimIds;
+  if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
+    my ($goslimIdsRef) = &getGoSlimGoids($datatype);
+    %goslimIds = %$goslimIdsRef;
+    foreach my $goid (sort keys %goslimIds) {
+      my $goname = $goslimIds{$goid};
+#       $goid =~ s/GO://;
+      my $button      = qq(<span id="$goid" style="display: none">- $goname<br/></span>);
+      $goslimButtons .= qq($button);
+    } # foreach my $goid (sort keys %goslimIds)
+  }
 
 # FIX
 
@@ -1748,37 +1424,6 @@ print qq($toPrint);
 print qq(</body></html>);
 } # sub annotSummaryCytoscape
 
-sub svgCleanup {
-  my ($svgGenerated, $focusTermId) = @_;
-  my ($svgMarkup) = $svgGenerated =~ m/(<svg.*<\/svg>)/s;             # capture svg markup
-  my ($height, $width) = ('', '');
-  if ($svgMarkup =~ m/<svg width="(\d+)pt" height="(\d+)pt"/) { $width = $1; $height = $2; }
-  my $hwratio = $height / $width;
-  my $widthResolution = 960;
-  if ($width > $widthResolution) { 
-    my $newwidth  = $widthResolution;
-    my $newheight = int($newwidth * $hwratio);
-    $svgMarkup =~ s/<svg width="${width}pt" height="${height}pt"/<svg width="${newwidth}pt" height="${newheight}pt"/g;
-  }
-  $svgMarkup =~ s/<title>[^<]*?<\/title>/<title>${focusTermId}Phenotypes<\/title>/g;                            # remove automatic title
-  $svgMarkup =~ s/<title>test<\/title>//g;                            # remove automatic title
-  $svgMarkup =~ s/<title>Perl<\/title>//g;                            # remove automatic title
-  $svgMarkup =~ s/_placeholderColon_/:/g;                             # ids can't be created with a : in them, so have to add the : after the svg is generated
-  $svgMarkup =~ s/LINEBREAK//g;                             		# remove leading hidden linebreak to offset counts of rnai and variation in transparent line afterward
-  $svgMarkup =~ s/fill="#fffffe"/fill="rgba\(0,0,0,0.01\)"/g;		# cannot set opacity value directly at creating, so setting fontcolor to transparent, which becomes #fffffe which we can replace with an rgba with very low opacity
-  my (@xlinkTitle) = $svgMarkup =~ m/xlink:title="(.*?)"/g;
-  foreach my $xlt (@xlinkTitle) {
-    my $xltEdited = $xlt;
-    $xltEdited =~ s/&lt;br\/&gt;/\n/g;
-    $xltEdited =~ s/&lt;\/?b&gt;//g;
-    $xltEdited =~ s/&lt;font color=&quot;transparent&quot;&gt;//g;
-    $xltEdited =~ s/&lt;\/font&gt;//g;
-    $xltEdited =~ s/^\n//;						# remove leading linebreak added by placeholder line break for centering label
-    $svgMarkup =~ s/$xlt/$xltEdited/g; 
-  } # foreach my $xlt (@xlinkTitle)
-  return $svgMarkup;
-} # sub svgCleanup
-
 sub calculateLCA {						# find all lowest common ancestors
   my ($ph1, $ph2) = @_;
   my @terms = ( $ph1, $ph2 );
@@ -1844,39 +1489,6 @@ sub recurseLongestPath {
   } # foreach $parent (sort keys %{ $paths{"childToParent"}{$current} })
 } # sub recurseLongestPath
 
-sub getInferredRelationship {
-  my ($one, $two) = @_; my $relationship = 'unknown';
-  if ($one eq 'is_a') {
-      if ($two eq 'is_a') {                     $relationship = 'is_a';                  }
-      elsif ($two eq 'part_of') {               $relationship = 'part_of';               }
-      elsif ($two eq 'regulates') {             $relationship = 'regulates';             }
-      elsif ($two eq 'positively_regulates') {  $relationship = 'positively_regulates';  }
-      elsif ($two eq 'negatively_regulates') {  $relationship = 'negatively_regulates';  }
-      elsif ($two eq 'has_part') {              $relationship = 'has_part';              } }
-    elsif ($one eq 'part_of') { 
-      if ($two eq 'is_a') {                     $relationship = 'part_of';               }
-      elsif ($two eq 'part_of') {               $relationship = 'part_of';               } }
-    elsif ($one eq 'regulates') { 
-      if ($two eq 'is_a') {                     $relationship = 'regulates';             }
-      elsif ($two eq 'part_of') {               $relationship = 'regulates';             } }
-    elsif ($one eq 'positively_regulates') { 
-      if ($two eq 'is_a') {                     $relationship = 'positively_regulates';  }
-      elsif ($two eq 'part_of') {               $relationship = 'regulates';             } }
-    elsif ($one eq 'negatively_regulates') { 
-      if ($two eq 'is_a') {                     $relationship = 'negatively_regulates';  }
-      elsif ($two eq 'part_of') {               $relationship = 'regulates';             } }
-    elsif ($one eq 'has_part') { 
-      if ($two eq 'is_a') {                     $relationship = 'has_part';              }
-      elsif ($two eq 'has_part') {              $relationship = 'has_part';              } }
-  return $relationship;
-} # sub getInferredRelationship
-
-sub makeLink {
-  my ($focusTermId, $text) = @_;
-  my $url = "soba_biggo.cgi?action=Tree&focusTermId=$focusTermId";
-  my $link = qq(<a href="$url">$text</a>);
-  return $link;
-} # sub makeLink
 
 sub printHtmlFooter { print qq(</body></html>\n); }
 

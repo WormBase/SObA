@@ -1,1 +1,1 @@
-# SObA
+# Summary of Ontology-based Annotations
