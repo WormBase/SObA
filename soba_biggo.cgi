@@ -666,6 +666,10 @@ sub annotSummaryJsonCode {
             %lastGoodEdges = %{ dclone(\%tempEdges) }; } } }
     } # while (@parentNodes)
     $fullDepth = $nodeDepth - 1;					# node depth went one too many
+    if ($maxDepth > $fullDepth) {                                       # if a depth higher than full depth is requested, show the whole graph
+      %lastGoodNodes = %{ dclone(\%tempNodes) };
+      %lastGoodEdges = %{ dclone(\%tempEdges) }; 
+    }
     unless ($maxDepth) {						# if there's no max depth, use the full graph
       %lastGoodNodes = %{ dclone(\%tempNodes) };
       %lastGoodEdges = %{ dclone(\%tempEdges) }; }
