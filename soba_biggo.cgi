@@ -2,7 +2,7 @@
 
 # partially cleaned up amigo.cgi from 12.204 to only produce SObA  2016 12 14
 
-# http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&autocompleteValue=F56F4.3%20(Caenorhabditis%20elegans,%20WB:WBGene00018980,%20-,%20-)&showControlsFlag=1
+# /~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&autocompleteValue=F56F4.3%20(Caenorhabditis%20elegans,%20WB:WBGene00018980,%20-,%20-)&showControlsFlag=1
 
 # on wormbase
 #  root/templates/classes/gene/phenotype_graph.tt2
@@ -24,6 +24,8 @@ use LWP::Simple;
 use LWP::UserAgent;
 use JSON;
 use Tie::IxHash;                                # allow hashes ordered by item added
+use Net::Domain qw(hostname hostfqdn hostdomain);
+
 
 
 use Storable qw(dclone);			# copy hash of hashes
@@ -32,6 +34,9 @@ use Time::HiRes qw( time );
 my $startTime = time; my $prevTime = time;
 $startTime =~ s/(\....).*$/$1/;
 $prevTime  =~ s/(\....).*$/$1/;
+
+my $hostname = hostname();
+
 
 # my $top_datatype = 'phenotype';
 my $json = JSON->new->allow_nonref;
@@ -113,7 +118,7 @@ sub autocompleteGene {
       my $extraMatchesCount = $max_results - $matchesCount;
       $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=((bioentity_internal_id_searchable:"' . $firstWord . '"+AND+bioentity_internal_id_searchable:' . $lastWord . '*)+OR+(bioentity_name_searchable:"' . $firstWord . '"+AND+bioentity_name_searchable:' . $lastWord . '*)+OR+(bioentity_label_searchable:"' . $firstWord . '"+AND+bioentity_label_searchable:' . $lastWord . '*)+OR+(synonym_searchable:"' . $firstWord . '"+AND+synonym_searchable:' . $lastWord . '*))';
 
-# http://wobr2.caltech.edu:8080/solr/$datatype/select?qt=standard&fl=score,id,bioentity_internal_id,bioentity_label,bioentity_name,synonym,taxon,taxon_label&version=2.2&wt=json&rows=500&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=
+# :8080/solr/$datatype/select?qt=standard&fl=score,id,bioentity_internal_id,bioentity_label,bioentity_name,synonym,taxon,taxon_label&version=2.2&wt=json&rows=500&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=
 
 
       if ($taxonFq) { $solr_gene_url .= "&fq=($taxonFq)"; }
@@ -275,47 +280,6 @@ sub makeInputField {
 } # sub makeInputField
 
 
-
-sub autocompleteJqueryFixedsource {
-  print <<"EndOfText";
-Content-type: text/html\n
-<!DOCTYPE html>
-<html lang = "en">
-   <head>
-      <meta charset = "utf-8">
-      <title>jQuery UI Autocomplete functionality</title>
-      <link href = "https://code.jquery.com/ui/1.10.4/themes/ui-lightness/jquery-ui.css"
-         rel = "stylesheet">
-      <script src = "https://code.jquery.com/jquery-1.10.2.js"></script>
-      <script src = "https://code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
-      
-      <!-- Javascript -->
-      <script>
-         \$(function() {
-            var availableTutorials  =  [
-               "ActionScript",
-               "Boostrap",
-               "C",
-               "C++",
-            ];
-            \$( "#automplete-1" ).autocomplete({
-               source: availableTutorials
-            });
-         });
-      </script>
-   </head>
-   
-   <body>
-      <!-- HTML --> 
-      <div class = "ui-widget">
-         <p>Enter a Gene</p>
-         <label for = "automplete-1">Tags: </label>
-         <input id = "automplete-1">
-      </div>
-   </body>
-</html>
-EndOfText
-}
 
 sub getSolrUrl {
   my ($focusTermId) = @_;
@@ -560,11 +524,6 @@ sub calculateNodesAndEdges {
 # # radio_etgo=radio_etgo_withiea&rootsChosen=&maxNodes=0&maxDepth=0&filterLongestFlag=0&filterForLcaFlag=1
 # # radio_etgo=radio_etgo_withiea&rootsChosen=                   &showControlsFlag=1&fakeRootFlag=0&filterForLcaFlag=1&filterLongestFlag=0&maxNodes=0&maxDepth=0
 # # radio_etgo=             &rootsChosen=WBPhenotype:0000886&showControlsFlag=1               &filterForLcaFlag=0&filterLongestFlag=0&maxNodes=0&maxDepth=0
-# # 
-# # DOESN"T WORK
-# # http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJson&focusTermId=WB:WBGene00002282&radio_etgo=radio_etgo_withiea&rootsChosen=&fakeRootFlag=0&maxNodes=0&maxDepth=0&filterLongestFlag=0&filterForLcaFlag=1
-# # http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJson&focusTermId=WB:WBGene00002282&radio_etgo=&rootsChosen=WBPhenotype:0000886&showControlsFlag=1&fakeRootFlag=0&filterForLcaFlag=0&filterLongestFlag=0&maxNodes=0&maxDepth=0
-# # WORKS
 
   my ($var, $radio_etgo)       = &getHtmlVar($query, 'radio_etgo');
   my ($var, $radio_etp)        = &getHtmlVar($query, 'radio_etp');
@@ -788,17 +747,25 @@ sub calculateNodesAndEdges {
 
 
 sub annotSummaryJsonp {
-# http://wobr2.caltech.edu/~azurebrd/cgi-bin/amigo.cgi?action=annotSummaryJsonp&focusTermId=WBGene00000899
+  my ($var, $datatype)          = &getHtmlVar($query, 'datatype');
+  ($var, my $callback)          = &getHtmlVar($query, 'callback');
+# /~azurebrd/cgi-bin/amigo.cgi?action=annotSummaryJsonp&focusTermId=WBGene00000899
 # for cross domain access, needs to be jsonp with header below, content-type is different, json has a function wrapped around it.
   print $query->header(
     -type => 'application/javascript',
     -access_control_allow_origin => '*',
   );
+  if ($callback) { 									# Sibyl would like to assign the callback name as a parameter
+      print qq($callback\(\n); }					
+    else {
+      my $ucfirstDatatype = ucfirst($datatype);
+      print qq(jsonCallback$ucfirstDatatype\(\n); }					# need the datatype for separate widgets with different cytoscape graphs to tell which one they want back
   &annotSummaryJsonCode();
+  print qq(\);\n);
 } # sub annotSummaryJsonp
 
 sub annotSummaryJson {			# temporarily keep this for the live www.wormbase going through the fake phenotype_graph_json widget
-# http://wobr2.caltech.edu/~azurebrd/cgi-bin/amigo.cgi?action=annotSummaryJson&focusTermId=WBGene00000899
+# /~azurebrd/cgi-bin/amigo.cgi?action=annotSummaryJson&focusTermId=WBGene00000899
   print qq(Content-type: application/json\n\n);		# for json
   &annotSummaryJsonCode();
 } # sub annotSummaryJson
@@ -812,6 +779,7 @@ sub annotSummaryJsonCode {
   my ($var, $rootsChosen)       = &getHtmlVar($query, 'rootsChosen');
   my ($var, $maxNodes)          = &getHtmlVar($query, 'maxNodes');
   my ($var, $maxDepth)          = &getHtmlVar($query, 'maxDepth');
+  ($datatype) = lc($datatype);
   unless ($maxNodes) { $maxNodes = 0; }
   unless ($maxDepth) { $maxDepth = 0; }
   unless ($rootsChosen) {
@@ -991,6 +959,7 @@ sub annotSummaryJsonCode {
         @parentNodes = ( 'GO:0000000' ); $nodeDepth = 0; } }
     
     foreach my $node (@parentNodes) {
+# print qq(NODE $node PN @parentNodes\n);
       foreach my $type (keys %{ $nodes{$node} }) {
         $tempNodes{$node}{$type} = $nodes{$node}{$type}; } }
     if ($maxDepth) {						# if there's a max depth requested
@@ -1002,6 +971,7 @@ sub annotSummaryJsonCode {
 # print qq(MAX DEPTH $maxDepth<BR>\n);
 # print qq(NODE DEPTH $nodeDepth<BR>\n);
       my $parent = shift @parentNodes;					# take a parent
+# print qq(PARENT $parent PN @parentNodes\n);
       foreach my $child (sort keys %{ $edgesLca{$parent} }) {		# each child of parent
         $tempEdges{$parent}{$child}++;					# add parent-child edge to final graph
         next if (exists $tempNodes{$child});				# skip children already added through other parent
@@ -1011,8 +981,10 @@ sub annotSummaryJsonCode {
         foreach my $type (keys %{ $nodes{$child} }) {
           $tempNodes{$child}{$type} = $nodes{$child}{$type}; }
         push @nextLayerParentNodes, $child;					# child is a good node, add to parent list to check its children
+# print qq(ADD $child to next layer\n);
       } # foreach my $child (sort keys %{ $edgesLca{$parent} }) 
       if ( (scalar @parentNodes == 0) ) {				# if looked at all parent nodes
+# print qq(DEPTH INCREASE\n);
         $nodeDepth++;							# increase depth
         @parentNodes = @nextLayerParentNodes;				# repopulate from the next layer of parent nodes
         @nextLayerParentNodes = ();					# clean up the next layer of parent nodes
@@ -1023,6 +995,10 @@ sub annotSummaryJsonCode {
             %lastGoodEdges = %{ dclone(\%tempEdges) }; } } }
     } # while (@parentNodes)
     $fullDepth = $nodeDepth - 1;					# node depth went one too many
+    if ($maxDepth > $fullDepth) {					# if a depth higher than full depth is requested, show the whole graph
+      %lastGoodNodes = %{ dclone(\%tempNodes) };
+      %lastGoodEdges = %{ dclone(\%tempEdges) }; 
+    }
     unless ($maxDepth) {						# if there's no max depth, use the full graph
       %lastGoodNodes = %{ dclone(\%tempNodes) };
       %lastGoodEdges = %{ dclone(\%tempEdges) }; }
@@ -1032,7 +1008,7 @@ sub annotSummaryJsonCode {
 
 
     # 2019 01 29 some nodes have connection to parents in the graph at the same level, but the edges are removed in lopping because lopping doesn't keep going lower.
-    # e.g. http://wobr2.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&autocompleteValue=F56F4.3%20(Caenorhabditis%20elegans,%20WB:WBGene00018980,%20-,%20-)&showControlsFlag=1  max nodes 10  5887 -> 16021  gone despite both being in graph, so that it limits edges down to lowest number.
+    # e.g. /~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&autocompleteValue=F56F4.3%20(Caenorhabditis%20elegans,%20WB:WBGene00018980,%20-,%20-)&showControlsFlag=1  max nodes 10  5887 -> 16021  gone despite both being in graph, so that it limits edges down to lowest number.
   my $addEdgesOfNodesToParentsDirectlyInTheGraph = 1;
   if ($addEdgesOfNodesToParentsDirectlyInTheGraph) {			
     foreach my $nodeInGraph (sort keys %nodes) {
@@ -1089,7 +1065,7 @@ sub annotSummaryJsonCode {
   foreach my $node (sort keys %nodes) {
     next unless ( ($nodesWithEdges{$node}) || ($maxDepth == 1) );	# nodes must have an edge unless the depth is only 1
     my $name = $nodes{$node}{label};
-    $name =~ s/ /\\n/g;
+    $name =~ s/ /\\n/g;							# to add linebreaks to node labels
     my @annotCounts;
     foreach my $evidenceType (sort keys %{ $nodes{$node}{'counts'} }) {
       next if ($evidenceType eq 'any');				# skip 'any', only used for relative size to max value
@@ -1126,17 +1102,17 @@ sub annotSummaryJsonCode {
       if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
 #         $node =~ s/GO://; 
-        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable" } }); }
+        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable" } }); }
       elsif ($nodes{$node}{lca}) {
 # print qq(LCA NODE $node\n);
         if ($goslimIds{$node}) { $backgroundColor = 'blue'; }
 #         $node =~ s/GO://; 
-        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });   }
+        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });   }
       elsif ($nodes{$node}{annot}) {
 # print qq(ANNOT NODE $node\n);
          if ($goslimIds{$node}) { $backgroundColor = 'red'; }
 #          $node =~ s/GO://; 
-         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "red", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });     } 
+         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "red", "annotationDirectness" : "direct", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });     } 
       else {
 # print qq(OTHER NODE $node\n); 
     }
@@ -1150,6 +1126,7 @@ sub annotSummaryJsonCode {
   unless (scalar @nodes > 0) { 
     push @nodes, qq({ "data" : { "id" : "No Annotations", "name" : "No Annotations", "annotCounts" : "1", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" } }); }
 
+  my $ucfirstDatatype = ucfirst($datatype);
   my $nodes = join",\n", @nodes; 
   print qq({ "elements" : {\n);
   print qq("nodes" : [\n);
@@ -1158,7 +1135,7 @@ sub annotSummaryJsonCode {
   print qq("edges" : [\n);
   print qq($edges\n);
   print qq(]\n);
-  print qq(, "meta" : { "fullDepth" : $fullDepth } } }\n);
+  print qq(, "meta" : { "fullDepth" : $fullDepth, "focusTermId" : "$focusTermId", "urlBase" : "https://${hostname}.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJsonp&focusTermId=${focusTermId}&datatype=${ucfirstDatatype}" } } }\n);
 } # sub annotSummaryJsonCode
 
 sub recurseAncestorsToAddEdges {		# for a given node in the graph after longest path and trimming, check its parents, if a parent is in the graph then link it to the given node, otherwise check the grandparents to link to original node, recurse.
@@ -1203,7 +1180,7 @@ sub getGoSlimGoids {
 } # sub getGoSlimGoids
 
 sub annotSummaryCytoscape {
-# http://wobr2.caltech.edu/~azurebrd/cgi-bin/amigo.cgi?action=annotSummaryCytoscape&focusTermId=WBGene00000899
+# /~azurebrd/cgi-bin/amigo.cgi?action=annotSummaryCytoscape&focusTermId=WBGene00000899
   my ($all_roots) = @_;
   my ($var, $focusTermId)          = &getHtmlVar($query, 'focusTermId');
   ($var, my $autocompleteValue)    = &getHtmlVar($query, 'autocompleteValue');
@@ -1329,6 +1306,17 @@ Content-type: text/html\n
 
   Promise.all([ graphP ]).then(initCy);
 
+  function linkFromEdge(nodeObjId) {		// generate url from datatype + edge's target node's objId
+    var linkout = '';
+    if ('$datatype' === 'anatomy') {          linkout = 'https://wormbase.org/species/all/anatomy_term/' + nodeObjId + '#4--10'; }
+      else if ('$datatype' === 'disease') {   linkout = 'https://wormbase.org/resources/disease/' + nodeObjId + '#2--10';        }
+      else if ('$datatype' === 'go') {        linkout = 'https://wormbase.org/species/all/go_term/' + nodeObjId + '#2--10';      }
+      else if ('$datatype' === 'lifestage') { linkout = 'https://wormbase.org/species/all/life_stage/' + nodeObjId + '#2--10';   }
+      else if ('$datatype' === 'phenotype') { linkout = 'https://wormbase.org/species/all/phenotype/' + nodeObjId + '#3--10';    }
+      else if ('$datatype' === 'biggo') {     linkout = '';      							      }
+    return linkout;
+  }
+
   function linkFromNode(nodeId) {		// generate url from datatype + nodeId
     var linkout = 'http://amigo.geneontology.org/amigo/term/' + nodeId;
     if ('$datatype' === 'anatomy') {          linkout = 'https://wormbase.org/species/all/anatomy_term/' + nodeId; }
@@ -1372,7 +1360,7 @@ Content-type: text/html\n
             'height': 'data(diameter)',
             'text-valign': 'center',
             'text-wrap': 'wrap',
-            'min-zoomed-font-size': 8,
+//             'min-zoomed-font-size': 8,		// FIX PUT THIS BACK
             'border-opacity': 0.3,
             'background-opacity': 0.3,
             'font-size': 'data(fontSize)'
@@ -1414,16 +1402,46 @@ Content-type: text/html\n
 //           if ((i == 0) || (i == maxOption)) { label = 'max'; }
           document.getElementById('maxDepth').options[i-1] = new Option(label, i, true, false) }
         document.getElementById('maxDepth').selectedIndex = maxOption - 1;
+
+        cyPhenGraph.on('mouseover', 'edge', function(e){
+          var edge        = e.cyTarget; 
+          var nodeId      = edge.data('target');
+          var nodeObj     = cyPhenGraph.getElementById( nodeId );
+          var nodeObjId   = nodeObj.data('objId');
+          var nodeName    = nodeObj.data('name');
+          var linkout     = linkFromEdge(nodeObjId);
+          var qtipContent = 'No information';
+          if (linkout) { qtipContent = 'Explore <a target="_blank" href="' + linkout + '">' + nodeName + '</a> graph'; }
+          edge.qtip({
+               position: {
+                 my: 'top center',
+                 at: 'bottom center'
+               },
+               style: {
+                 classes: 'qtip-bootstrap',
+                 tip: {
+                   width: 16,
+                   height: 8
+                 }
+               },
+               content: qtipContent,
+               show: {
+                  e: e.type,
+                  ready: true
+               },
+               hide: {
+                  e: 'mouseout unfocus'
+               }
+          }, e);
+        });
         
         cyPhenGraph.on('tap', 'node', function(e){
-          var node = e.cyTarget; 
-          var nodeId   = node.data('id');
+          var node         = e.cyTarget; 
+          var nodeId       = node.data('id');
           var neighborhood = node.neighborhood().add(node);
           cyPhenGraph.elements().addClass('faded');
           neighborhood.removeClass('faded');
-          if (node.data('nodeExpandable') === 'true') { 
-            alert(nodeId);
-          }
+//           if (node.data('nodeExpandable') === 'true') { alert(nodeId); }
 
           var node = e.cyTarget;
           var nodeId   = node.data('id');
@@ -1473,6 +1491,7 @@ Content-type: text/html\n
             \$('#info').html( qtipContent );
         });
 
+// STILL NEED THIS ON WB ?
 //  o fade out nodes on loading and remove buttons
         var nodes = cyPhenGraph.nodes();
         for( var i = 0; i < nodes.length; i++ ){
@@ -1481,6 +1500,7 @@ Content-type: text/html\n
           if (document.getElementById(nodeId)) { 	// if there's a button for this goslim term, remove faded
             document.getElementById(nodeId).style.display = ''; }
         }
+// END STILL NEED THIS ON WB ?
 
         var parentToChild = new Object();
         var nodes = cyPhenGraph.nodes();
@@ -1492,7 +1512,8 @@ Content-type: text/html\n
            var source = edges[i].data('source');
            var target = edges[i].data('target');
            parentToChild[source].push(target);
-           console.log('s ' + source + ' t ' + target); }
+//            console.log('s ' + source + ' t ' + target); 
+        }
 
 //         recurseChildren(parentToChild, 'GO:0000000');	// just to show stuff
         
@@ -1565,24 +1586,27 @@ console.log('radio_unweighted');
   });
   var updatingElements = ['radio_etgo_withiea', 'radio_etgo_excludeiea', 'radio_etgo_onlyiea', 'radio_etd_all', 'radio_etd_excludeiea', 'radio_eta_all', 'radio_eta_onlyexprcluster', 'radio_eta_onlyexprpattern',  'radio_etp_all', 'radio_etp_onlyrnai', 'radio_etp_onlyvariation', 'fakeRootFlag', 'filterForLcaFlag', 'filterLongestFlag', 'root_bp', 'root_cc', 'root_mf'];
   updatingElements.forEach(function(element) {
-    \$('#'+element).on('click', updateElements); });
-  \$('#maxNodes').on('blur', updateElements);
-  \$('#maxDepth').on('change', updateElements);
-  function updateElements() {
+    \$('#'+element).on('click', { name: element },  updateElements); });
+  \$('#maxNodes').on('blur', { name: "maxNodes" }, updateElements);
+  \$('#maxDepth').on('change', { name: "maxDepth" }, updateElements);
+  function updateElements(event) {
+console.log( "Updating from " + event.data.name );
     \$('#controldiv').hide(); \$('#loadingdiv').show();		// show loading and hide controls while graph loading
     var radioEtgo = \$('input[name=radio_etgo]:checked').val();
     var radioEtp  = \$('input[name=radio_etp]:checked').val();
     var radioEtd  = \$('input[name=radio_etd]:checked').val();
     var radioEta  = \$('input[name=radio_eta]:checked').val();
-console.log('radioEtp ' + radioEtp + ' end');
+// console.log('radioEtp ' + radioEtp + ' end');
     var rootsPossible = ['root_bp', 'root_cc', 'root_mf'];
     var rootsChosen = [];
     var showControlsFlagValue = '0'; if (\$('#showControlsFlag').is(':checked')) { showControlsFlagValue = 1; }
     var fakeRootFlagValue = '0'; if (\$('#fakeRootFlag').is(':checked')) { fakeRootFlagValue = 1; }
     var filterForLcaFlagValue = '0'; if (\$('#filterForLcaFlag').is(':checked')) { filterForLcaFlagValue = 1; }
     var filterLongestFlagValue = '0'; if (\$('#filterLongestFlag').is(':checked')) { filterLongestFlagValue = 1; }
-    var maxNodes = '0'; if (\$('#maxNodes').val()) { maxNodes = \$('#maxNodes').val(); }
-    var maxDepth = '0'; if (\$('#maxDepth').val()) { maxDepth = \$('#maxDepth').val(); }
+    var maxNodes = 0; if (\$('#maxNodes').val()) { maxNodes = \$('#maxNodes').val(); }
+    var maxDepth = 0; 
+    if (event.data.name === 'maxDepth') {
+      if (\$('#maxDepth').val()) { maxDepth = \$('#maxDepth').val(); } }
     rootsPossible.forEach(function(rootTerm) {
       if (document.getElementById(rootTerm).checked) { rootsChosen.push(document.getElementById(rootTerm).value); } });
     var rootsChosenGroup = rootsChosen.join(',');
@@ -1617,7 +1641,8 @@ console.log('radioEtp ' + radioEtp + ' end');
 //         if ((i == 0) || (i == maxOption)) { label = 'max'; }
         maxDepthElement.options[i-1] = new Option(label, i, true, false) }
       maxDepthElement.selectedIndex = maxOption - 1;
-      maxDepthElement.value = userSelectedValue;
+      if (event.data.name === 'maxDepth') { maxDepthElement.value = userSelectedValue; }
+//       if (userSelectedValue <= maxDepthElement.value) { maxDepthElement.value = userSelectedValue; }
     }
   } // function updateElements()
 
