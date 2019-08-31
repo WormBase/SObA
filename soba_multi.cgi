@@ -1053,7 +1053,7 @@ my $debugText = '';
   if ($processType eq 'analyze_pairs') {
     my ($is_ok, $termsQvalue_datatype, $termsQvalueHref) = &validateListTermsQvalue($objectsQvalue);
     if ($is_ok) {
-        $analyzePairsText .= qq(DATATYPE $termsQvalue_datatype<br>\n);
+#         $analyzePairsText .= qq(DATATYPE $termsQvalue_datatype<br>\n);
         %termsQvalue = %$termsQvalueHref;
         $datatype = $termsQvalue_datatype; }
       else { $analyzePairsText .= qq($termsQvalue_datatype<br>\n); }
@@ -1568,11 +1568,11 @@ $debugText
 
 $analyzePairsText
 
-JSONURL $jsonUrl
+<!--JSONURL $jsonUrl-->
 
 </head>
 <body>
-<div style="width: 1705px;">
+<div style="width: 1255px;">
   <div id="cyPhenGraph"  style="border: 1px solid #aaa; float: left;  position: relative; height: 1050px; width: 1050px;"></div>
   <div id="exportdiv" style="width: 1050px; height: 1050px; position: relative; float: left; display: none;"><img id="png-export" style="border: 1px solid #ddd; display: none; max-width: 1050px; max-height: 1050px"></div>
     <div id="loading">
