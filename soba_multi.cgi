@@ -193,7 +193,7 @@ sub validateListTermsQvalue {
     if ($termQvalue =~ m/^(\S+)\s+(.*?)$/) {
         ($term, $qvalue) = $termQvalue =~ m/^(\S+)\s+(.*?)$/; 
         if ($qvalue) { $orig_qvalue = $qvalue; }
-        if ($qvalue == 0) { $qvalue = 1e-100; }			# for a value of zero
+        if ($qvalue == 0) { $qvalue = 1e-100; $orig_qvalue = "zero"; }			# for a value of zero
       }
       elsif ($termQvalue =~ m/^(\S+)\s+$/) {
         $term = $1; }
@@ -543,7 +543,7 @@ sub calculateNodesAndEdges {
           $phenotypes{$term}++;
         } # foreach my $term (sort keys %termsQvalue)
     }
-      else { print qq(HERE $termsQvalue_datatype<br>\n); }
+      else { print qq(Terms did not validate properly. $termsQvalue_datatype<br>\n); }
   }
 
 # END
@@ -1110,7 +1110,7 @@ my $debugText = '';
 #         $analyzePairsText .= qq(DATATYPE $termsQvalue_datatype<br>\n);
         %termsQvalue = %$termsQvalueHref;
         $datatype = $termsQvalue_datatype; }
-      else { $analyzePairsText .= qq(HERE $termsQvalue_datatype<br>\n); }
+      else { $analyzePairsText .= qq(Terms did not validate properly. $termsQvalue_datatype<br>\n); }
     $legendBlueNodeText = 'Enriched Term';
     $legendRedNodeText = 'Inferred Term';
     $legendWeightstateWeighted = 'Significance weighted';
