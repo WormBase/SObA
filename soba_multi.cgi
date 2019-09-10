@@ -92,7 +92,9 @@ sub process {
     elsif ($action eq 'frontPage')          { &frontPage();     }	# autocomplete on gene names
     elsif ($action eq 'Analyze Pairs')              { &annotSummaryCytoscape('analyze_pairs');     }    # autocomplete on gene names
     elsif ($action eq 'autocompleteXHR') {            &autocompleteXHR(); }
-
+    elsif ($action eq 'One Gene to SObA Graph') {     &pickOneGenePage(); }
+    elsif ($action eq 'Gene Pair to SObA Graph') {    &pickTwoGenesPage(); }
+    elsif ($action eq 'Terms to SObA Graph') {        &pickOntologyTermsPage(); }
     else { &frontPage(); }				# no action, show dag by default
 } # sub process
 
@@ -185,9 +187,12 @@ sub validateListTermsQvalue {
   my %termsQvalue = ();
   my $errorMessage = '';
   foreach my $termQvalue (@termsQvalue) {
+    if ($termQvalue =~ m/\s+$/) { $termQvalue =~ s/\s+$//; }
     my ($term, $qvalue) = ('', undef);
+    my $orig_qvalue = '';
     if ($termQvalue =~ m/^(\S+)\s+(.*?)$/) {
         ($term, $qvalue) = $termQvalue =~ m/^(\S+)\s+(.*?)$/; 
+        if ($qvalue) { $orig_qvalue = $qvalue; }
         if ($qvalue == 0) { $qvalue = 1e-100; }			# for a value of zero
       }
       elsif ($termQvalue =~ m/^(\S+)\s+$/) {
@@ -198,7 +203,8 @@ sub validateListTermsQvalue {
     $types{$datatype}++;
     if ($qvalue == undef) {      $qvalue = 0.367879; }			
       elsif ($qvalue < 1e-100) { $qvalue = 1e-100;   }
-    $termsQvalue{$term} = $qvalue;
+    $termsQvalue{$term}{qvalue} = $qvalue;
+    $termsQvalue{$term}{orig_qvalue} = $orig_qvalue;
   } # foreach my $termQvalue (@termsQvalue)
   my @datatypes = keys %types;
   my $datatype = join", ", @datatypes;
@@ -254,8 +260,64 @@ sub solrSearch {
   return $matchesHashref;
 } # sub solrSearch
 
-
 sub frontPage {
+  print "Content-type: text/html\n\n";
+  my $title = 'SObA options page';
+  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+  $header .= "<title>$title</title>\n";
+  $header .= "</head>";
+  $header .= '<body class="yui-skin-sam">';
+  print qq($header);
+  print qq(<form method="get" action="soba_multi.cgi">);
+  print << "EndOfText";
+  One Gene to SObA Graph:<br/>
+  Enter one gene name to obtain a SObA Graph that illustrates annotations.<br/>
+  <input type="submit" name="action" value="One Gene to SObA Graph"><br/><br/><br/>
+
+  Terms to SObA Graph:<br/>
+  Enter a list of enriched ontology terms (Anatomy, GO or Phenotype, but not mixed), and associated Q (corrected-P) values to obtain a SObA Graph.<br/>
+  <input type="submit" name="action" value="Terms to SObA Graph"><br/><br/><br/>
+
+  Gene Pair to SObA Graph:<br/>
+  Enter two gene names to obtain a SObA Graph that illustrates their combined annotations.<br/>
+  <input type="submit" name="action" value="Gene Pair to SObA Graph"><br/><br/><br/>
+EndOfText
+
+  print qq(</body></html>);
+} # sub frontPage
+
+sub pickOntologyTermsPage {
+  print "Content-type: text/html\n\n";
+  my $title = 'SObA pick a gene';
+  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+  $header .= "<title>$title</title>\n";
+  print qq($header);
+#   my $exampleData = qq(WBbt:0006817     0.00026\nWBbt:0006814   0.00028\nWBbt:0003927   0.00031\nWBbt:0003737   0.00034\nWBbt:0003721   0.00034\nWBbt:0003740   0.00034\nWBbt:0003724   0.00043\nWBbt:0006762   0.00067\nWBbt:0006764   0.0007\nWBbt:0006763    0.00072\n);
+  my $exampleData = qq(WBPhenotype:0000012	0.0001\nWBPhenotype:0002056	0.00042\nWBPhenotype:0000462	0.005\nWBPhenotype:0001621	0.049\nWBPhenotype:0000200	0.07\nWBPhenotype:0000033	0.093\n);
+  print qq(<form method="post" action="soba_multi.cgi">);
+  print qq(Enter datatype objects paired with q-values on separate lines:<br/>\n);
+  print qq(<textarea rows="8" cols="80" name="objectsQvalue" id="objectsQvalue">$exampleData</textarea>);
+  print qq(<input type="hidden" name="filterForLcaFlag" id="filterForLcaFlag" value="1">);
+  print qq(<input type="hidden" name="filterLongestFlag" id="filterLongestFlag" value="1">);
+  print qq(<input type="hidden" name="showControlsFlag" id="showControlsFlag" value="0">);
+  print qq(<input type="submit" name="action" id="analyzePairsButton" value="Analyze Pairs"><br/><br/><br/>);
+  print qq(</form>);
+  print qq(</body></html>);
+} # sub pickOntologyTermsPage
+
+sub pickTwoGenesPage {
+  print "Content-type: text/html\n\n";
+  my $title = 'SObA pick two genes';
+  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+  $header .= "<title>$title</title>\n";
+  $header .= "</head>";
+  $header .= '<body class="yui-skin-sam">';
+  print qq($header);
+  print qq(nothing yet);
+  print qq(</body></html>);
+} # sub pickTwoGenesPage
+
+sub pickOneGenePage {
   print "Content-type: text/html\n\n";
   my $title = 'SObA pick a gene';
   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
@@ -289,17 +351,6 @@ EndOfText
   $header .= "</head>";
   $header .= '<body class="yui-skin-sam">';
   print qq($header);
-
-#   my $exampleData = qq(WBbt:0006817     0.00026\nWBbt:0006814   0.00028\nWBbt:0003927   0.00031\nWBbt:0003737   0.00034\nWBbt:0003721   0.00034\nWBbt:0003740   0.00034\nWBbt:0003724   0.00043\nWBbt:0006762   0.00067\nWBbt:0006764   0.0007\nWBbt:0006763    0.00072\n);
-  my $exampleData = qq(WBPhenotype:0000012	0.0001\nWBPhenotype:0002056	0.00042\nWBPhenotype:0000462	0.005\nWBPhenotype:0001621	0.049\nWBPhenotype:0000200	0.07\nWBPhenotype:0000033	0.093\n);
-  print qq(<form method="post" action="soba_multi.cgi">);
-  print qq(Enter datatype objects paired with q-values on separate lines:<br/>\n);
-  print qq(<textarea rows="8" cols="80" name="objectsQvalue" id="objectsQvalue">$exampleData</textarea>);
-  print qq(<input type="hidden" name="filterForLcaFlag" id="filterForLcaFlag" value="1">);
-  print qq(<input type="hidden" name="filterLongestFlag" id="filterLongestFlag" value="1">);
-  print qq(<input type="hidden" name="showControlsFlag" id="showControlsFlag" value="0">);
-  print qq(<input type="submit" name="action" id="analyzePairsButton" value="Analyze Pairs"><br/><br/><br/>);
-  print qq(</form>);
 
   print << "EndOfText";
     <B>Choose a gene <!--<span style="color: red;">*</span>--></B>
@@ -351,7 +402,7 @@ EndOfText
   }
 
   print qq(</body></html>);
-} # sub frontPage
+} # sub pickOneGenePage
 
 
 sub calcNodeWidth {
@@ -476,7 +527,8 @@ sub calculateNodesAndEdges {
       if ($is_ok) {
         %termsQvalue = %$termsQvalueHref;
         foreach my $term (sort keys %termsQvalue) {
-          my $qvalue = $termsQvalue{$term};
+          my $qvalue = $termsQvalue{$term}{qvalue};
+          my $orig_qvalue = $termsQvalue{$term}{orig_qvalue};
           $qvalue = $qvalue + 0;			# for some reason this has a linebreak after it, needs to be a number for json
           if ($qvalue == 0) { $qvalue = 0.1; }
           my $scaling = 0;
@@ -486,10 +538,12 @@ sub calculateNodesAndEdges {
             $scaling = -1 * log($qvalue); }
           $nodes{$term}{'counts'}{'any'} = $scaling;
           $nodes{$term}{'qvalue'} = $qvalue;
-#           print qq(TERM $term V $termsQvalue{$term} S $scaling E\n);
+          $nodes{$term}{'orig_qvalue'} = $orig_qvalue;
+#           print qq(TERM $term V $termsQvalue{$term}{qvalue} S $scaling E\n);
           $phenotypes{$term}++;
         } # foreach my $term (sort keys %termsQvalue)
     }
+      else { print qq(HERE $termsQvalue_datatype<br>\n); }
   }
 
 # END
@@ -906,7 +960,7 @@ sub annotSummaryJsonCode {
 #     } }
     
     my $qvalue = 'not determined';
-    if ($nodes{$node}{'qvalue'}) { $qvalue = $nodes{$node}{'qvalue'}; }
+    if ($nodes{$node}{'orig_qvalue'}) { $qvalue = $nodes{$node}{'orig_qvalue'}; }
 #     if ($termsQvalue{$node}) { $qvalue = $termsQvalue{$node}; }
 #     $qvalue = '0.0001';
 #     my $qvalueEntry = qq("qvalue" : ") . $qvalue . qq(",);
@@ -1056,7 +1110,7 @@ my $debugText = '';
 #         $analyzePairsText .= qq(DATATYPE $termsQvalue_datatype<br>\n);
         %termsQvalue = %$termsQvalueHref;
         $datatype = $termsQvalue_datatype; }
-      else { $analyzePairsText .= qq($termsQvalue_datatype<br>\n); }
+      else { $analyzePairsText .= qq(HERE $termsQvalue_datatype<br>\n); }
     $legendBlueNodeText = 'Enriched Term';
     $legendRedNodeText = 'Inferred Term';
     $legendWeightstateWeighted = 'Significance weighted';
@@ -1336,9 +1390,9 @@ Content-type: text/html\n
           var linkout = linkFromNode(objId);
           var qtipContent = '';
           if (annotCounts !== 'undefined') { qtipContent += 'Annotation Count:' + annotCounts + '<br/>'; }
-          if (qvalue !== 'undefined') {      qtipContent += 'Q Value:' + qvalue + '<br/>';          }
+          if (qvalue !== 'undefined') {      qtipContent += 'Q Value: ' + qvalue + '<br/>';          }
           qtipContent += '<a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
-//           var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/>Q Value:<br/>' + qvalue + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
+//           var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/>Q Value :<br/>' + qvalue + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
 //           var qtipContent = annotCounts + '<br/><a target="_blank" href="http://amigo.geneontology.org/amigo/term/' + nodeId + '">' + nodeId + ' - ' + nodeName + '</a>';
           node.qtip({
                position: {
@@ -1380,7 +1434,7 @@ Content-type: text/html\n
 //             var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/>Q Value:<br/>' + qvalue + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
             var qtipContent = '';
             if (annotCounts !== 'undefined') { qtipContent += 'Annotation Count:' + annotCounts + '<br/>'; }
-            if (qvalue !== 'undefined') {      qtipContent += 'Q Value:' + qvalue + '<br/>';          }
+            if (qvalue !== 'undefined') {      qtipContent += 'Q Value: ' + qvalue + '<br/>';          }
             qtipContent += '<a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
             \$('#info').html( qtipContent );
         });
