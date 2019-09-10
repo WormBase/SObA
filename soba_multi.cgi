@@ -554,6 +554,7 @@ sub calculateNodesAndEdges {
 #     my $phenotype_solr_url = $solr_url . 'select?qt=standard&fl=regulates_transitivity_graph_json,topology_graph_json&version=2.2&wt=json&indent=on&rows=1&fq=-is_obsolete:true&fq=document_category:%22ontology_class%22&q=id:%22' . $phenotypeId . '%22';
 
 
+  my $errorMessage = '';
   foreach my $phenotypeId (sort keys %phenotypes) {
     push @annotPhenotypes, $phenotypeId;
     my $phenotype_solr_url = $solr_url . 'select?qt=standard&fl=regulates_transitivity_graph_json,topology_graph_json&version=2.2&wt=json&indent=on&rows=1&fq=-is_obsolete:true&fq=document_category:%22ontology_class%22&q=id:%22' . $phenotypeId . '%22';
@@ -562,6 +563,7 @@ sub calculateNodesAndEdges {
 #     print qq( phenotype_solr_url $phenotype_solr_url\n);                                           # get the URL
     my $perl_scalar = $json->decode( $page_data );                        # get the solr data
     my %jsonHash    = %$perl_scalar;
+    if ($jsonHash{'response'}{'numFound'} == 0) { $errorMessage .= qq($phenotypeId not found<br/>); }
     next unless ($jsonHash{"response"}{"docs"}[0]{"regulates_transitivity_graph_json"} );	# term must have data to extra json from it
     my $transHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"regulates_transitivity_graph_json"} );
     my %transHash = %$transHashref;
@@ -660,7 +662,7 @@ sub calculateNodesAndEdges {
     } # while (scalar keys %{ $edgesPtcCopy{$parent} } > 0)
   } # while (@parentNodes)
 
-  return ($toReturn, \%nodes, \%edgesLca);
+  return ($toReturn, \%nodes, \%edgesLca, $errorMessage);
 } # sub calculateNodesAndEdges
 
 
@@ -708,7 +710,7 @@ sub annotSummaryJsonCode {
      elsif ($datatype eq 'lifestage') { $rootsChosen = "WBls:0000075";        }
   }
   my (@rootsChosen) = split/,/, $rootsChosen;
-  my ($return, $nodesHashref, $edgesLcaHashref) = &calculateNodesAndEdges($focusTermId, $objectsQvalue, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes);
+  my ($return, $nodesHashref, $edgesLcaHashref, $errorMessage) = &calculateNodesAndEdges($focusTermId, $objectsQvalue, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes);
   if ($return) { print qq(RETURN $return ENDRETURN\n); }
   my %nodes    = %$nodesHashref;
 # foreach my $node (sort keys %nodes) { print qq(RETURNED NODES $node\n); }
@@ -1014,7 +1016,7 @@ sub annotSummaryJsonCode {
   print qq("edges" : [\n);
   print qq($edges\n);
   print qq(]\n);
-  print qq(, "meta" : { "fullDepth" : $fullDepth, "focusTermId" : "$focusTermId", "urlBase" : "https://${hostname}.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJsonp&focusTermId=${focusTermId}&datatype=${ucfirstDatatype}" } } }\n);
+  print qq(, "meta" : { "fullDepth" : $fullDepth, "focusTermId" : "$focusTermId", "urlBase" : "https://${hostname}.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJsonp&focusTermId=${focusTermId}&datatype=${ucfirstDatatype}", "errorMessage" : "$errorMessage" } } }\n);
 } # sub annotSummaryJsonCode
 
 sub recurseAncestorsToAddEdges {		# for a given node in the graph after longest path and trimming, check its parents, if a parent is in the graph then link it to the given node, otherwise check the grandparents to link to original node, recurse.
@@ -1332,6 +1334,9 @@ Content-type: text/html\n
         window.cyPhenGraph = this;
         cyPhenGraph.elements().unselectify();
 
+        var errorMessage = then[0].elements.meta.errorMessage;
+        document.getElementById('jsonReturnErrorMessage').innerHTML = errorMessage;
+
 //         var maxOption = 7;
         var maxOption = then[0].elements.meta.fullDepth;
         document.getElementById('maxDepth').options.length = 0;
@@ -1626,6 +1631,7 @@ $analyzePairsText
 
 </head>
 <body>
+<div id="jsonReturnErrorMessage"></div>
 <div style="width: 1255px;">
   <div id="cyPhenGraph"  style="border: 1px solid #aaa; float: left;  position: relative; height: 1050px; width: 1050px;"></div>
   <div id="exportdiv" style="width: 1050px; height: 1050px; position: relative; float: left; display: none;"><img id="png-export" style="border: 1px solid #ddd; display: none; max-width: 1050px; max-height: 1050px"></div>
