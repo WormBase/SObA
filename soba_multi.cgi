@@ -1238,8 +1238,7 @@ my $debugText = '';
   }
 
 # FIX
-
-  $focusTermId = 'WB:WBGene00001135';
+#   $focusTermId = 'WB:WBGene00001135';
   my $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
   if ($processType eq 'analyze_pairs') {
     $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsPvalue . '&datatype=' . $datatype;
