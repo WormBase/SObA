@@ -310,11 +310,82 @@ sub pickTwoGenesPage {
   print "Content-type: text/html\n\n";
   my $title = 'SObA pick two genes';
   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+  $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
+  $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
+  $header .= <<"EndOfText";
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/fonts/fonts-min.css" />
+    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
+    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
+    <script type="text/javascript" src="../javascript/soba_multi.js"></script>
+EndOfText
+
   $header .= "<title>$title</title>\n";
   $header .= "</head>";
   $header .= '<body class="yui-skin-sam">';
   print qq($header);
-  print qq(nothing yet);
+
+  print qq(<input type="hidden" name="which_page" id="which_page" value="pickTwoGenesPage">\n);
+
+  my $datatype = 'biggo';		# by defalt for front page
+  my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+  my $page_data = get $solr_taxon_url;
+  my $perl_scalar = $json->decode( $page_data );
+  my %jsonHash = %$perl_scalar;
+
+  print qq(Select a datatype to display.<br/>\n);
+  my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+  foreach my $datatype (@datatypes) {
+    my $checked = '';
+    if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
+    print qq(<input type="radio" name="radio_datatype" id="radio_datatype" value="$datatype" $checked onclick="setAutocompleteListeners();" >$datatype</input><br/>\n); }
+  print qq(<br/>);
+
+  my @fieldCount  = ('One', 'Two');
+  foreach my $fieldCount (@fieldCount) {
+    my $countGene = 'first'; if ($fieldCount eq 'Two') { $countGene = 'second'; }
+    print << "EndOfText";
+      <B>Choose the $countGene gene <!--<span style="color: red;">*</span>--></B>
+      <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
+        <span id="containerForcedGene${fieldCount}AutoComplete">
+          <div id="forcedGene${fieldCount}AutoComplete">
+                <input size="50" name="gene" id="input_Gene${fieldCount}" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
+                <div id="forcedGene${fieldCount}Container"></div>
+          </div></span><br/><br/>
+EndOfText
+    
+    my $div_display = ''; if ($fieldCount eq 'Two') { $div_display = 'style="display: none"'; }
+    print qq(<div id="controls$fieldCount" $div_display>\n);
+    print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
+    my %taxons;
+    
+    my @priorityTaxons = ( 'Homo sapiens', 'Arabidopsis thaliana', 'Caenorhabditis elegans', 'Danio rerio', 'Drosophila melanogaster', 'Escherichia coli K-12', 'Mus musculus', 'Rattus norvegicus', 'Saccharomyces cerevisiae S288c' );
+    my %priorityTaxons;
+    foreach my $taxon (@priorityTaxons) {
+      $priorityTaxons{$taxon}++;
+      my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+      print qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
+    }
+    print qq(<br/>);
+    print qq(<br/>Additional species.<br/>);
+    
+    while (scalar (@{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} }) > 0) {
+      my $taxon      = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+      my $someNumber = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+      next if ($priorityTaxons{$taxon});	# already entered before
+      my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+      $taxons{qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
+    }
+    foreach my $taxon (sort keys %taxons) {
+      print $taxon;
+    }
+    print qq(</div>\n);
+    print qq(<br/><br/>\n);
+  }
+
   print qq(</body></html>);
 } # sub pickTwoGenesPage
 
@@ -353,16 +424,7 @@ EndOfText
   $header .= '<body class="yui-skin-sam">';
   print qq($header);
 
-  print << "EndOfText";
-    <B>Choose a gene <!--<span style="color: red;">*</span>--></B>
-    <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
-      <span id="containerForcedGeneAutoComplete">
-        <div id="forcedGeneAutoComplete">
-              <input size="50" name="gene" id="input_Gene" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
-              <div id="forcedGeneContainer"></div>
-        </div></span><br/><br/>
-  <br/>
-EndOfText
+  print qq(<input type="hidden" name="which_page" id="which_page" value="pickOneGenePage">\n);
 
   my $datatype = 'biggo';		# by defalt for front page
   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
@@ -376,6 +438,17 @@ EndOfText
     my $checked = '';
     if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
     print qq(<input type="radio" name="radio_datatype" id="radio_datatype" value="$datatype" $checked onclick="setAutocompleteListeners();" >$datatype</input><br/>\n); }
+  print qq(<br/>);
+
+  print << "EndOfText";
+    <B>Choose a gene <!--<span style="color: red;">*</span>--></B>
+    <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
+      <span id="containerForcedGeneAutoComplete">
+        <div id="forcedGeneAutoComplete">
+              <input size="50" name="gene" id="input_Gene" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
+              <div id="forcedGeneContainer"></div>
+        </div></span><br/><br/>
+EndOfText
 
   print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
   my %taxons;
