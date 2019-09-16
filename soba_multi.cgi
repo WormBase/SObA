@@ -506,7 +506,7 @@ sub getDiffTime {
 
 
 sub calculateNodesAndEdges {
-  my ($focusTermId, $objectsQvalue, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes) = @_;
+  my ($focusTermId, $geneOneId, $objectsQvalue, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes) = @_;
   my (@parentNodes) = split/,/, $rootsChosen;
   unless ($datatype) { $datatype = 'phenotype'; }			# later will need to change based on different datatypes
 #   if ($datatype eq 'phenotype') {		# FIX should come from function call
@@ -539,20 +539,27 @@ sub calculateNodesAndEdges {
   my %termsQvalue;							# map term to qvalue from user input
 
 # START
+  my %whichGene = ();
+  my @geneIds = ();
   if ($focusTermId) {
+    push @geneIds, $focusTermId;
+    if ($geneOneId) { push @geneIds, $geneOneId; }
+    foreach my $geneId (@geneIds) {
+      my $whichGene = 'One';
+      if ($geneId eq $focusTermId) { $whichGene = 'Two'; }
 #   print qq(FT $focusTermId E\n);
-    my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $focusTermId . '%22';
+    my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $geneId . '%22';
     if ($radio_etgo) {
-      if ($radio_etgo eq 'radio_etgo_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $focusTermId . '%22'; }
-        elsif ($radio_etgo eq 'radio_etgo_onlyiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=bioentity,regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:(EXP+IDA+IPI+IMP+IGI+IEP)&fq=bioentity:%22' . $focusTermId . '%22'; } }
+      if ($radio_etgo eq 'radio_etgo_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $geneId . '%22'; }
+        elsif ($radio_etgo eq 'radio_etgo_onlyiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=bioentity,regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:(EXP+IDA+IPI+IMP+IGI+IEP)&fq=bioentity:%22' . $geneId . '%22'; } }
     if ($radio_etp) {
-      if ($radio_etp eq 'radio_etp_onlyvariation') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:Variation&fq=bioentity:%22' . $focusTermId . '%22'; }
-        elsif ($radio_etp eq 'radio_etp_onlyrnai') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:RNAi&fq=bioentity:%22' . $focusTermId . '%22'; } }
+      if ($radio_etp eq 'radio_etp_onlyvariation') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:Variation&fq=bioentity:%22' . $geneId . '%22'; }
+        elsif ($radio_etp eq 'radio_etp_onlyrnai') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:RNAi&fq=bioentity:%22' . $geneId . '%22'; } }
     if ($radio_etd) {
-      if ($radio_etd eq 'radio_etd_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $focusTermId . '%22'; } }
+      if ($radio_etd eq 'radio_etd_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $geneId . '%22'; } }
     if ($radio_eta) {
-      if ($radio_eta eq 'radio_eta_onlyexprcluster') {       $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:WBPaper*)&fq=bioentity:%22' . $focusTermId . '%22'; }
-        elsif ($radio_eta eq 'radio_eta_onlyexprpattern') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:Expr*+*WB\:Marker*)&fq=bioentity:%22' . $focusTermId . '%22'; } }
+      if ($radio_eta eq 'radio_eta_onlyexprcluster') {       $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:WBPaper*)&fq=bioentity:%22' . $geneId . '%22'; }
+        elsif ($radio_eta eq 'radio_eta_onlyexprpattern') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:Expr*+*WB\:Marker*)&fq=bioentity:%22' . $geneId . '%22'; } }
 
 
 #   Anatomy, Expr and Expression_cluster (ref.
@@ -560,7 +567,7 @@ sub calculateNodesAndEdges {
 #   There are three groups of objects WB:Expr***, WBMarker*** (these are Expression patterns), WB:WBPaper*** (these are Expression profiles).
 
 #   amigo.cgi query
-#     $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22WB:' . $focusTermId . '%22';
+#     $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22WB:' . $geneId . '%22';
 
     my $page_data   = get $annotation_count_solr_url;                                           # get the URL
 #     print qq( annotation_count_solr_url $annotation_count_solr_url\n);                                           # get the URL
@@ -573,6 +580,7 @@ sub calculateNodesAndEdges {
     foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
       my $phenotype = $$doc{'annotation_class'};
       $phenotypes{$phenotype}++;
+      $whichGene{$phenotype}{$whichGene}++;
       my $id = $$doc{'id'};
       my (@idarray) = split/\t/, $id;
       if ($datatype eq 'anatomy') {  
@@ -594,7 +602,8 @@ sub calculateNodesAndEdges {
             $annotationCounts{$goid}{'any'}++; $annotationCounts{$goid}{$type}++; 
 #   print qq(NODE GOID $goid 2\n);
             $nodes{$goid}{'counts'}{'any'}++;  $nodes{$goid}{'counts'}{$type}++;  } }
-    }
+    } # foreach my $doc (@{ $jsonHash{'response'}{'docs'} })
+    } # foreach my $geneId (@geneIds)
   } # if ($focusTermId)
     elsif ($objectsQvalue) {
       my ($is_ok, $termsQvalue_datatype, $termsQvalueHref) = &validateListTermsQvalue($objectsQvalue);
@@ -634,7 +643,7 @@ sub calculateNodesAndEdges {
     my $phenotype_solr_url = $solr_url . 'select?qt=standard&fl=regulates_transitivity_graph_json,topology_graph_json&version=2.2&wt=json&indent=on&rows=1&fq=-is_obsolete:true&fq=document_category:%22ontology_class%22&q=id:%22' . $phenotypeId . '%22';
 
     my $page_data   = get $phenotype_solr_url;                                           # get the URL
-#     print qq( phenotype_solr_url $phenotype_solr_url\n);                                           # get the URL
+#     print qq( phenotype_solr_url $phenotype_solr_url\n);
     my $perl_scalar = $json->decode( $page_data );                        # get the solr data
     my %jsonHash    = %$perl_scalar;
     if ($jsonHash{'response'}{'numFound'} == 0) { $errorMessage .= qq($phenotypeId not found<br/>); }
@@ -736,7 +745,7 @@ sub calculateNodesAndEdges {
     } # while (scalar keys %{ $edgesPtcCopy{$parent} } > 0)
   } # while (@parentNodes)
 
-  return ($toReturn, \%nodes, \%edgesLca, $errorMessage);
+  return ($toReturn, \%nodes, \%edgesLca, \%whichGene, $errorMessage);
 } # sub calculateNodesAndEdges
 
 
@@ -766,6 +775,7 @@ sub annotSummaryJson {			# temporarily keep this for the live www.wormbase going
 
 sub annotSummaryJsonCode {
   my ($var, $focusTermId)       = &getHtmlVar($query, 'focusTermId');
+  my ($var, $geneOneId)         = &getHtmlVar($query, 'geneOneId');
   my ($var, $datatype)          = &getHtmlVar($query, 'datatype');
   my ($var, $objectsQvalue)     = &getHtmlVar($query, 'objectsQvalue');
   my ($var, $fakeRootFlag)      = &getHtmlVar($query, 'fakeRootFlag');
@@ -784,11 +794,12 @@ sub annotSummaryJsonCode {
      elsif ($datatype eq 'lifestage') { $rootsChosen = "WBls:0000075";        }
   }
   my (@rootsChosen) = split/,/, $rootsChosen;
-  my ($return, $nodesHashref, $edgesLcaHashref, $errorMessage) = &calculateNodesAndEdges($focusTermId, $objectsQvalue, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes);
+  my ($return, $nodesHashref, $edgesLcaHashref, $whichGeneHashref, $errorMessage) = &calculateNodesAndEdges($focusTermId, $geneOneId, $objectsQvalue, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes);
   if ($return) { print qq(RETURN $return ENDRETURN\n); }
   my %nodes    = %$nodesHashref;
 # foreach my $node (sort keys %nodes) { print qq(RETURNED NODES $node\n); }
   my %edgesLca = %$edgesLcaHashref;
+  my %whichGene = %$whichGeneHashref;
   if ($fakeRootFlag) { 
     if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
       my $fakeRoot = 'GO:0000000';
@@ -1024,6 +1035,9 @@ sub annotSummaryJsonCode {
     my $borderWidthRoot_weighted = 4 * $borderWidth;
     my $borderWidthRoot_unweighted = 8;				# scaled diameter and fontSize to keep borderWidth the same, but passing values in case we ever want to change them, we won't have to change the cytoscape receiving the json
     my $labelColor = 'black'; if ($node eq 'GO:0000000') { $labelColor = '#fff'; }
+    if ( $whichGene{$node}{'One'} && $whichGene{$node}{'Two'} ) { $labelColor = 'purple'; }
+      elsif ( $whichGene{$node}{'One'} ) { $labelColor = 'blue'; }
+      elsif ( $whichGene{$node}{'Two'} ) { $labelColor = 'red'; }
     my $backgroundColor = 'white'; 
     my $nodeExpandable = 'false'; 
 # label nodes green if they have a child it could expand into, not relevant 2019 02 08
@@ -1139,6 +1153,7 @@ sub annotSummaryCytoscape {
   my ($processType) = @_;
   my ($var, $focusTermId)          = &getHtmlVar($query, 'focusTermId');
   ($var, my $autocompleteValue)    = &getHtmlVar($query, 'autocompleteValue');
+  ($var, my $geneOneValue)         = &getHtmlVar($query, 'geneOneValue');
   ($var, my $datatype)             = &getHtmlVar($query, 'datatype');
   ($var, my $showControlsFlag)     = &getHtmlVar($query, 'showControlsFlag');
   ($var, my $fakeRootFlag)         = &getHtmlVar($query, 'fakeRootFlag');
@@ -1156,7 +1171,7 @@ sub annotSummaryCytoscape {
   ($var, my $root_mf)              = &getHtmlVar($query, 'root_mf');
   ($var, my $root_cc)              = &getHtmlVar($query, 'root_cc');
   ($var, my $objectsQvalue)        = &getHtmlVar($query, 'objectsQvalue');
-  my $encodedObjectsPvalue         = uri_encode($objectsQvalue);
+  my $encodedObjectsQvalue         = uri_encode($objectsQvalue);
   my $toPrint = ''; my $return = '';
   my $checked_radio_etp_all      = 'checked="checked"'; my $checked_radio_etp_onlyrnai = '';    my $checked_radio_etp_onlyvariation = '';
   if ($radio_etp eq 'radio_etp_onlyvariation') { $checked_radio_etp_all = ''; $checked_radio_etp_onlyvariation = 'checked="checked"'; }
@@ -1220,8 +1235,9 @@ my $debugText = '';
   my $roots = join",", @roots;
 
 #   if ($processType eq 'single_gene') {
-    unless ($focusTermId) {
-      ($focusTermId) = $autocompleteValue =~ m/, (.*?),/; }
+  my $geneOneId = '';
+  unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/, (.*?),/; }
+  unless ($geneOneId) {   ($geneOneId)   = $geneOneValue      =~ m/, (.*?),/; }
 #   }
 
   my $goslimButtons = '<a href="http://geneontology.org/docs/go-subset-guide/" target="_blank">Alliance Slim terms</a> in graph:<br/>';
@@ -1241,9 +1257,10 @@ my $debugText = '';
 #   $focusTermId = 'WB:WBGene00001135';
   my $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
   if ($processType eq 'analyze_pairs') {
-    $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsPvalue . '&datatype=' . $datatype;
-#     $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
-  }
+#       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
+      $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
+    elsif ($geneOneId) {
+      $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=' . $geneOneId . '&focusTermId=' . $focusTermId . '&datatype=' . $datatype; }
   if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) { $jsonUrl .= '&radio_etgo=' . $radio_etgo . '&rootsChosen=' . $roots; }
     elsif ($datatype eq 'phenotype') {                   $jsonUrl .= '&radio_etp='  . $radio_etp;                             }
     elsif ($datatype eq 'disease') {                     $jsonUrl .= '&radio_etd='  . $radio_etd;                             }
@@ -1299,7 +1316,8 @@ Content-type: text/html\n
   // get exported json from cytoscape desktop via ajax
   var data = { action: "annotSummaryJson", datatype: "$datatype" };
   if ('$processType' === 'single_gene')   {                  data["focusTermId"]       = "$focusTermId"; } 
-    else if ('$processType' === 'analyze_pairs') {           data["objectsQvalue"]     = "$encodedObjectsPvalue"; } 
+    else if ('$processType' === 'analyze_pairs') {           data["objectsQvalue"]     = "$encodedObjectsQvalue"; } 
+  if ('$geneOneId' !== '') {                                 data["geneOneId"]         = "$geneOneId"; }
   if (('$datatype' === 'go') || ('$datatype' === 'biggo')) { data["radio_etgo"]        = "$radio_etgo"; data["rootsChosen"] = "$roots"; }
     else if ('$datatype' === 'phenotype') {                  data["radio_etp"]         = "$radio_etp"; }
     else if ('$datatype' === 'disease') {                    data["radio_etd"]         = "$radio_etd"; }
@@ -1638,8 +1656,9 @@ console.log( "Updating from " + event.data.name );
     var rootsChosenGroup = rootsChosen.join(',');
     var jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=$focusTermId&datatype=$datatype';
     if ('$processType' === 'analyze_pairs') {
-      jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=$encodedObjectsPvalue&datatype=$datatype';
-    }
+        jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=$encodedObjectsQvalue&datatype=$datatype'; }
+      else if ('$geneOneId' !== '') {
+        jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=$geneOneId&focusTermId=$focusTermId&datatype=$datatype'; }
     if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) { jsonUrl += '&radio_etgo=' + radioEtgo; }
       else if ('$datatype' === 'phenotype') {                    jsonUrl += '&radio_etp='  + radioEtp;  }
       else if ('$datatype' === 'disease') {                      jsonUrl += '&radio_etd='  + radioEtd;  }
@@ -1650,7 +1669,8 @@ console.log('jsonUrl ' + jsonUrl);
 //     var data = { action: "annotSummaryJson", focusTermId: "$focusTermId", datatype: "$datatype" };
     var data = { action: "annotSummaryJson", datatype: "$datatype" };
     if ('$processType' === 'single_gene')   {                  data["focusTermId"]       = "$focusTermId"; } 
-      else if ('$processType' === 'analyze_pairs') {           data["objectsQvalue"]     = "$encodedObjectsPvalue"; } 
+      else if ('$processType' === 'analyze_pairs') {           data["objectsQvalue"]     = "$encodedObjectsQvalue"; } 
+    if ('$geneOneId' !== '') {                                 data["geneOneId"]         = "$geneOneId"; }
     if (('$datatype' === 'go') || ('$datatype' === 'biggo')) { data["radio_etgo"] = radioEtgo; data["rootsChosen"] = rootsChosenGroup; }
       else if ('$datatype' === 'phenotype') { data["radio_etp"]         = radioEtp; }
       else if ('$datatype' === 'disease') {   data["radio_etd"]         = radioEtd; }
@@ -1786,7 +1806,7 @@ $analyzePairsText
         <input type="checkbox" name="root_cc" id="root_cc" value="GO:0005575" $checked_root_cc >Cellular Component</input><br/>
         <input type="checkbox" name="root_mf" id="root_mf" value="GO:0003674" $checked_root_mf >Molecular Function</input><br/>
       </div><br/>
-      <input type="hidden" name="focusTermId" value="$focusTermId">
+      <input type="hidden" name="focusTermId" value="$focusTermId">	<!-- not sure what this is for -->
       <div id="controlMenu" style="display: $displayControlMenu;">
         <!--Max Nodes<input type="input" size="3" id="maxNodes" name="maxNodes" value="0"><br/>-->
         <input type="checkbox" id="showControlsFlag"  name="showControlsFlag"  value="1" $checked_showControls>Show Controls<br/>
