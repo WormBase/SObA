@@ -526,7 +526,12 @@ sub calculateNodesAndEdges {
     # link 1, from wbgene get wbphenotypes from   "grouped":{ "annotation_class":{ "matches":12, "ngroups":4, "groups":[{ "groupValue":"WBPhenotype:0000674", # }]}}
 
   my %allLca;								# all nodes that are LCA to any pair of annotated terms
-  my %nodes;
+  my %nodes;								# node -> 'counts' -> $whichGene/'anygene' -> $evidenceType/'anytype'
+                                                                        # node -> qvalue
+                                                                        # node -> orig_qvalue
+                                                                        # node -> label
+                                                                        # node -> annot		annotated node
+                                                                        # node -> lca		lca node
   my %edgesPtc;								# edges from parent to child
 
   my $nodeWidth    = 1;
@@ -926,8 +931,7 @@ sub annotSummaryJsonCode {
       if ($nodeDepth == $maxDepth) {				# if requested depth is current depth, save the nodes and edges
 #   print qq(NODE DEPTH $nodeDepth == MAX DEPTH $maxDepth\n);
         %lastGoodNodes = %{ dclone(\%tempNodes) };		# doing this here in the case user wants max depth of 1
-        %lastGoodEdges = %{ dclone(\%tempEdges) }; 
-        @parentNodes = (); } }					# done processing, skip looping though parentNodes
+        %lastGoodEdges = %{ dclone(\%tempEdges) }; } }		# can't stop processing here, need to get fullDepth
     my @nextLayerParentNodes = ();
     while ( (scalar @parentNodes > 0) ) {						# while there are parent nodes, go through them
 #   print qq(MAX DEPTH $maxDepth<BR>\n);
