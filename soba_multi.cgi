@@ -585,23 +585,27 @@ sub calculateNodesAndEdges {
         if ($datatype eq 'anatomy') {  
             my @entries = split/\|/, $idarray[7];
             foreach my $entry (@entries) { 
-              my $type = ''; 
-              if ($entry =~ m/^WB:Expr/) {         $type = 'Expression Pattern'; }
-                elsif ($entry =~ m/^WBMarker/) {   $type = 'Expression Pattern'; }
-                elsif ($entry =~ m/^WB:WBPaper/) { $type = 'Expression Cluster'; }
-              if ($type) {
+              my $evidenceType = ''; 
+              if ($entry =~ m/^WB:Expr/) {         $evidenceType = 'Expression Pattern'; }
+                elsif ($entry =~ m/^WBMarker/) {   $evidenceType = 'Expression Pattern'; }
+                elsif ($entry =~ m/^WB:WBPaper/) { $evidenceType = 'Expression Cluster'; }
+              if ($evidenceType) {
 # FIX ?  nodeIdInferred -> nodeIdAnnotany ?
                 foreach my $nodeIdInferred (@{ $$doc{'regulates_closure'} }) {
 #     print qq(NODE GOID $nodeIdInferred 1\n);
                   $annotationNodeidWhichgene{'any'}{$nodeIdInferred}{$whichGene}++;	# track which gene inferred nodes came from
-                  $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$type}++;  } } } }
+#                   $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$evidenceType}++;  
+                  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{$evidenceType}++;  
+                  $nodes{$nodeIdInferred}{'counts'}{$whichGene}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{$whichGene}{$evidenceType}++; } } } }
           else {
-            my $type = $idarray[6];
-            if ($datatype eq 'lifestage') { if ($type eq 'IDA') { $type = 'Gene Expression'; } }
+            my $evidenceType = $idarray[6];
+            if ($datatype eq 'lifestage') { if ($evidenceType eq 'IDA') { $evidenceType = 'Gene Expression'; } }
             foreach my $nodeIdInferred (@{ $$doc{'regulates_closure'} }) {
 #     print qq(NODE GOID $nodeIdInferred 2\n);
               $annotationNodeidWhichgene{'any'}{$nodeIdInferred}{$whichGene}++;		# track which gene inferred nodes came from
-              $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$type}++;  } }
+#               $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$evidenceType}++;  
+              $nodes{$nodeIdInferred}{'counts'}{'anygene'}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{$evidenceType}++;  
+              $nodes{$nodeIdInferred}{'counts'}{$whichGene}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{$whichGene}{$evidenceType}++; } }
       } # foreach my $doc (@{ $jsonHash{'response'}{'docs'} })
     } # foreach my $geneId (@geneIds)
   } # if ($focusTermId)
@@ -620,7 +624,7 @@ sub calculateNodesAndEdges {
 #           $scaling = -1 * log($qvalue);
           if ($qvalue) {
             $scaling = -1 * log($qvalue); }
-          $nodes{$term}{'counts'}{'any'} = $scaling;
+          $nodes{$term}{'counts'}{'anygene'}{'anytype'} = $scaling;
           $nodes{$term}{'qvalue'} = $qvalue;
           $nodes{$term}{'orig_qvalue'} = $orig_qvalue;
 #           print qq(TERM $term V $termsQvalue{$term}{qvalue} S $scaling E\n);
@@ -680,17 +684,23 @@ sub calculateNodesAndEdges {
 # UNDO THIS
 #       $lbl = "$id - $lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
       $nodes{$id}{label} = $lbl;
-      next unless ($transNodes{$id});
-#       $lbl =~ s/ /<br\/>/g;                                                # replace spaces with html linebreaks in graph for more-square boxes
-      my $label = "$lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
-      if ($nodes{$id}) { 					# if there are annotation counts to variation and/or rnai, add them to the box
-        my @annotCounts;
-        foreach my $evidenceType (sort keys %{ $nodes{$id}{'counts'} }) {
-          next if ($evidenceType eq 'any');				# skip 'any', only used for relative size to max value
-          push @annotCounts, qq($nodes{$id}{'counts'}{$evidenceType} $evidenceType); }
-        my $annotCounts = join"; ", @annotCounts;
-        $label = qq(LINEBREAK<br\/>$label<br\/><font color="transparent">$annotCounts<\/font>);				# add html line break and annotation counts to the label
-      }
+# remove this later if it didn't break something to remove it
+#       next unless ($transNodes{$id});
+# #       $lbl =~ s/ /<br\/>/g;                                                # replace spaces with html linebreaks in graph for more-square boxes
+#       my $label = "$lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
+#       if ($nodes{$id}) { 					# if there are annotation counts to variation and/or rnai, add them to the box
+#         my $annotCounts = '';
+#         foreach my $whichGene (sort keys %{ $nodes{$id}{'counts'} }) {
+#           next if ($whichGene eq 'anygene');				# skip 'anygene', only use geneOne / geneTwo
+#           $annotCounts .= $whichGene . ' - ';
+#           my @annotCounts;
+#           foreach my $evidenceType (sort keys %{ $nodes{$id}{'counts'}{$whichGene} }) {
+#             next if ($evidenceType eq 'anytype');			# skip 'anytype', only used for relative size to max value
+#             push @annotCounts, qq($nodes{$id}{'counts'}{$whichGene}{$evidenceType} $evidenceType); } 
+#           $annotCounts .= join"; ", @annotCounts; }
+#         $annotCounts .= "\n";
+#         $label = qq(LINEBREAK<br\/>$label<br\/><font color="transparent">$annotCounts<\/font>);				# add html line break and annotation counts to the label
+#       }
 # print qq(ID $id LBL $lbl E\n);
       if ($id && $lbl) { 
         $nodesAll{$nodeIdAnnotated}{$id} = $lbl;
@@ -809,17 +819,17 @@ sub annotSummaryJsonCode {
       $nodes{$fakeRoot}{label} = 'Gene Ontology';
       $nodesAll{$fakeRoot}{label} = 'Gene Ontology';
       foreach my $sub (@rootsChosen) {
-        if ($nodes{$sub}{'counts'}) {					# root must have an annotation to be added
+        if ($nodes{$sub}{'counts'}{'anygene'}{'anytype'}) {		# root must have an annotation to be added
           $edgesLca{$fakeRoot}{$sub}++; }				# any existing edge, parent to child 
   } } }
   my @nodes = ();
   my %rootNodes; 
-  my $rootNodeMaxAnnotationCount = 1;					# max annotation count to calculate node size
+  my %anyRootNodeMaxAnnotationCount;
   foreach my $root (@rootsChosen) { 
-    $rootNodes{$root}++; 						# add to roots hash
-    if ($nodes{$root}{'counts'}{'any'}) {				# find maximum annotation count among roots
-      if ($nodes{$root}{'counts'}{'any'} > $rootNodeMaxAnnotationCount) { 
-        $rootNodeMaxAnnotationCount = $nodes{$root}{'counts'}{'any'}; } } }
+     $rootNodes{$root}++; 						# add to roots hash
+    foreach my $whichGene (sort keys %{ $nodes{$root}{'counts'} }) {
+      if ($nodes{$root}{'counts'}{$whichGene}{'anytype'} > $anyRootNodeMaxAnnotationCount{$whichGene}) { 
+        $anyRootNodeMaxAnnotationCount{$whichGene} = $nodes{$root}{'counts'}{$whichGene}{'anytype'}; } } }
   if ($fakeRootFlag) { 
     if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
       $rootNodes{'GO:0000000'}++; } }
@@ -1025,12 +1035,19 @@ sub annotSummaryJsonCode {
     next unless ( ($nodesWithEdges{$node}) || ($maxDepth == 1) );	# nodes must have an edge unless the depth is only 1
     my $name = $nodes{$node}{label};
     $name =~ s/ /\\n/g;							# to add linebreaks to node labels
-    my @annotCounts;
-    foreach my $evidenceType (sort keys %{ $nodes{$node}{'counts'} }) {
-      next if ($evidenceType eq 'any');				# skip 'any', only used for relative size to max value
-      push @annotCounts, qq($nodes{$node}{'counts'}{$evidenceType} $evidenceType); }
-    my $annotCounts = join"; ", @annotCounts;
-    my $diameter = $diameterMultiplier * &calcNodeWidth($nodes{$node}{'counts'}{'any'}, $rootNodeMaxAnnotationCount);
+        my $annotCounts = '';
+        foreach my $whichGene (sort keys %{ $nodes{$node}{'counts'} }) {
+          next if ($whichGene eq 'anygene');				# skip 'anygene', only use geneOne / geneTwo
+          $annotCounts .= $whichGene . ' - Annotation Count: ';
+          my @annotCounts;
+          foreach my $evidenceType (sort keys %{ $nodes{$node}{'counts'}{$whichGene} }) {
+            next if ($evidenceType eq 'anytype');			# skip 'anytype', only used for relative size to max value
+            push @annotCounts, qq($nodes{$node}{'counts'}{$whichGene}{$evidenceType} $evidenceType); }
+          $annotCounts .= join"; ", @annotCounts; 
+          $annotCounts .= qq( \($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $anyRootNodeMaxAnnotationCount{$whichGene}\));
+          $annotCounts .= "<br/>"; }
+
+    my $diameter = $diameterMultiplier * &calcNodeWidth($nodes{$node}{'counts'}{'anygene'}{'anytype'}, $anyRootNodeMaxAnnotationCount{'anygene'});
 # print qq(NODE $node DIAMETER $diameter E\n);
     my $diameter_unweighted = 40;
     my $diameter_weighted = $diameter;
@@ -1076,7 +1093,7 @@ sub annotSummaryJsonCode {
 
     my $cytId = $node; $cytId =~ s/://;
     if ($rootNodes{$node}) {
-      next unless ($nodes{$node}{'counts'}{'any'});			# only add a root if it has annotations
+      next unless ($nodes{$node}{'counts'}{'anygene'}{'anytype'});			# only add a root if it has annotations
       my $nodeColor  = 'blue';  if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
       if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
@@ -1495,7 +1512,8 @@ Content-type: text/html\n
           var qvalue = node.data('qvalue');
           var linkout = linkFromNode(objId);
           var qtipContent = '';
-          if (annotCounts !== 'undefined') { qtipContent += 'Annotation Count:' + annotCounts + '<br/>'; }
+//           if (annotCounts !== 'undefined') { qtipContent += 'Annotation Count:' + annotCounts + '<br/>'; }
+          if (annotCounts !== 'undefined') { qtipContent += annotCounts + '<br/>'; }
           if (qvalue !== 'undefined') {      qtipContent += 'Q Value: ' + qvalue + '<br/>';          }
           qtipContent += '<a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
 //           var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/>Q Value :<br/>' + qvalue + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
@@ -1539,7 +1557,8 @@ Content-type: text/html\n
             var linkout = linkFromNode(objId);
 //             var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/>Q Value:<br/>' + qvalue + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
             var qtipContent = '';
-            if (annotCounts !== 'undefined') { qtipContent += 'Annotation Count:' + annotCounts + '<br/>'; }
+//             if (annotCounts !== 'undefined') { qtipContent += 'Annotation Count:' + annotCounts + '<br/>'; }
+            if (annotCounts !== 'undefined') { qtipContent += annotCounts + '<br/>'; }
             if (qvalue !== 'undefined') {      qtipContent += 'Q Value: ' + qvalue + '<br/>';          }
             qtipContent += '<a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
             \$('#info').html( qtipContent );
