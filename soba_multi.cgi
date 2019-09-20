@@ -912,28 +912,31 @@ sub annotSummaryJsonCode {
       foreach my $type (keys %{ $nodes{$node} }) {
         $tempNodes{$node}{$type} = $nodes{$node}{$type}; } }
     if ($maxDepth) {						# if there's a max depth requested
+#   print qq(have MAX DEPTH $maxDepth\n);
       if ($nodeDepth == $maxDepth) {				# if requested depth is current depth, save the nodes and edges
+#   print qq(NODE DEPTH $nodeDepth == MAX DEPTH $maxDepth\n);
         %lastGoodNodes = %{ dclone(\%tempNodes) };		# doing this here in the case user wants max depth of 1
-        %lastGoodEdges = %{ dclone(\%tempEdges) }; } }
+        %lastGoodEdges = %{ dclone(\%tempEdges) }; 
+        @parentNodes = (); } }					# done processing, skip looping though parentNodes
     my @nextLayerParentNodes = ();
     while ( (scalar @parentNodes > 0) ) {						# while there are parent nodes, go through them
-#  print qq(MAX DEPTH $maxDepth<BR>\n);
-#  print qq(NODE DEPTH $nodeDepth<BR>\n);
+#   print qq(MAX DEPTH $maxDepth<BR>\n);
+#   print qq(NODE DEPTH $nodeDepth<BR>\n);
       my $parent = shift @parentNodes;					# take a parent
-# print qq(PARENT $parent PN @parentNodes\n);
+#   print qq(PARENT $parent PN @parentNodes\n);
       foreach my $child (sort keys %{ $edgesLca{$parent} }) {		# each child of parent
         $tempEdges{$parent}{$child}++;					# add parent-child edge to final graph
         next if (exists $tempNodes{$child});				# skip children already added through other parent
 #         $count++;
 #         if ($parent eq 'GO:0000000') { $count--; }			# never count nodes attached to fake root
-#  print qq(NODE CHILD $child PARENT $parent\n);
+#   print qq(NODE CHILD $child PARENT $parent\n);
         foreach my $type (keys %{ $nodes{$child} }) {
           $tempNodes{$child}{$type} = $nodes{$child}{$type}; }
         push @nextLayerParentNodes, $child;					# child is a good node, add to parent list to check its children
-#  print qq(ADD $child to next layer\n);
+#   print qq(ADD $child to next layer\n);
       } # foreach my $child (sort keys %{ $edgesLca{$parent} }) 
       if ( (scalar @parentNodes == 0) ) {				# if looked at all parent nodes
-#  print qq(DEPTH INCREASE\n);
+#   print qq(DEPTH INCREASE\n);
         $nodeDepth++;							# increase depth
         @parentNodes = @nextLayerParentNodes;				# repopulate from the next layer of parent nodes
         @nextLayerParentNodes = ();					# clean up the next layer of parent nodes
@@ -945,10 +948,13 @@ sub annotSummaryJsonCode {
     } # while (@parentNodes)
     $fullDepth = $nodeDepth - 1;					# node depth went one too many
     if ($maxDepth > $fullDepth) {                                       # if a depth higher than full depth is requested, show the whole graph
+#   print qq(MaxDepth $maxDepth > fullDepth $fullDepth\n);
       %lastGoodNodes = %{ dclone(\%tempNodes) };
       %lastGoodEdges = %{ dclone(\%tempEdges) }; 
     }
     unless ($maxDepth) {						# if there's no max depth, use the full graph
+#   print qq(unless MaxDepth $maxDepth\n);
+      %lastGoodNodes = %{ dclone(\%tempNodes) };
       %lastGoodNodes = %{ dclone(\%tempNodes) };
       %lastGoodEdges = %{ dclone(\%tempEdges) }; }
     %nodes = %{ dclone(\%lastGoodNodes) };
@@ -1070,7 +1076,7 @@ sub annotSummaryJsonCode {
 
     my $cytId = $node; $cytId =~ s/://;
     if ($rootNodes{$node}) {
-      next unless ($nodes{$node}{'counts'});			# only add a root if it has annotations
+      next unless ($nodes{$node}{'counts'}{'any'});			# only add a root if it has annotations
       my $nodeColor  = 'blue';  if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
       if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
