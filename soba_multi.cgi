@@ -1095,6 +1095,14 @@ sub annotSummaryJsonCode {
     }
 
 
+    my $pieInfo = '';
+    if ($geneOneId) {
+      my $geneOnePieSize    = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
+      my $geneTwoPieSize    = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
+      my $geneOnePieOpacity = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne};
+      my $geneTwoPieOpacity = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo};
+      $pieInfo = qq("geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity); }
+
     my $cytId = $node; $cytId =~ s/://;
     if ($rootNodes{$node}) {
       next unless ($nodes{$node}{'counts'}{'anygene'}{'anytype'});			# only add a root if it has annotations
@@ -1102,17 +1110,17 @@ sub annotSummaryJsonCode {
       if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
 #         $node =~ s/GO://; 
-        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable" } }); }
+        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable", $pieInfo } }); }
       elsif ($nodes{$node}{lca}) {
 # print qq(LCA NODE $node\n);
         if ($goslimIds{$node}) { $backgroundColor = 'blue'; }
 #         $node =~ s/GO://; 
-        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });   }
+          push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable", $pieInfo } });   }
       elsif ($nodes{$node}{annot}) {
 # print qq(ANNOT NODE $node\n);
          if ($goslimIds{$node}) { $backgroundColor = 'red'; }
 #          $node =~ s/GO://; 
-         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "red", "annotationDirectness" : "direct", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });     } 
+         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "red", "annotationDirectness" : "direct", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable", $pieInfo } });     } 
       else {
 # print qq(OTHER NODE $node\n); 
     }
@@ -1415,6 +1423,13 @@ Content-type: text/html\n
             'background-color': 'data(backgroundColor)',
             'color': 'data(labelColor)',
             'shape': 'data(nodeShape)',
+            'pie-size': '80%',
+            'pie-1-background-color': 'red',
+            'pie-1-background-size': 'mapData(geneOnePieSize, 0, 100, 0, 100)',
+            'pie-1-background-opacity': 'data(geneOnePieOpacity)',
+            'pie-2-background-color': 'blue',
+            'pie-2-background-size': 'mapData(geneTwoPieSize, 0, 100, 0, 100)',
+            'pie-2-background-opacity': 'data(geneTwoPieOpacity)',
             'border-color': 'data(nodeColor)',
             'border-style': 'data(borderStyle)',
             'border-width': 'data(borderWidth)',
