@@ -794,6 +794,8 @@ sub annotSummaryJson {			# temporarily keep this for the live www.wormbase going
 sub annotSummaryJsonCode {
   my ($var, $focusTermId)       = &getHtmlVar($query, 'focusTermId');
   my ($var, $geneOneId)         = &getHtmlVar($query, 'geneOneId');
+  my ($var, $focusTermName)     = &getHtmlVar($query, 'focusTermName');
+  my ($var, $geneOneName)       = &getHtmlVar($query, 'geneOneName');
   my ($var, $datatype)          = &getHtmlVar($query, 'datatype');
   my ($var, $objectsQvalue)     = &getHtmlVar($query, 'objectsQvalue');
   my ($var, $fakeRootFlag)      = &getHtmlVar($query, 'fakeRootFlag');
@@ -1039,17 +1041,20 @@ sub annotSummaryJsonCode {
     next unless ( ($nodesWithEdges{$node}) || ($maxDepth == 1) );	# nodes must have an edge unless the depth is only 1
     my $name = $nodes{$node}{label};
     $name =~ s/ /\\n/g;							# to add linebreaks to node labels
-        my $annotCounts = '';
-        foreach my $whichGene (sort keys %{ $nodes{$node}{'counts'} }) {
-          next if ($whichGene eq 'anygene');				# skip 'anygene', only use geneOne / geneTwo
-          $annotCounts .= $whichGene . ' - Annotation Count: ';
-          my @annotCounts;
-          foreach my $evidenceType (sort keys %{ $nodes{$node}{'counts'}{$whichGene} }) {
-            next if ($evidenceType eq 'anytype');			# skip 'anytype', only used for relative size to max value
-            push @annotCounts, qq($nodes{$node}{'counts'}{$whichGene}{$evidenceType} $evidenceType); }
-          $annotCounts .= join"; ", @annotCounts; 
-          $annotCounts .= qq( \($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $anyRootNodeMaxAnnotationCount{$whichGene}\));
-          $annotCounts .= "<br/>"; }
+    my $annotCounts = '';
+    foreach my $whichGene (sort keys %{ $nodes{$node}{'counts'} }) {
+      next if ($whichGene eq 'anygene');				# skip 'anygene', only use geneOne / geneTwo
+      my $geneName = $geneOneName; my $wbgene = $geneOneId; my $linkcolour = 'blue';
+      if ($whichGene eq 'geneTwo') { $geneName = $focusTermName; $wbgene = $focusTermId; $linkcolour = 'red'; }
+      $wbgene =~ s/WB://g;
+      $annotCounts .= qq(<a href='https://wormbase.org/species/c_elegans/gene/$wbgene' target='_blank' style='color: $linkcolour'>$geneName</a> - Annotation Count: );
+      my @annotCounts;
+      foreach my $evidenceType (sort keys %{ $nodes{$node}{'counts'}{$whichGene} }) {
+        next if ($evidenceType eq 'anytype');			# skip 'anytype', only used for relative size to max value
+        push @annotCounts, qq($nodes{$node}{'counts'}{$whichGene}{$evidenceType} $evidenceType); }
+      $annotCounts .= join"; ", @annotCounts; 
+      $annotCounts .= qq( \($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $anyRootNodeMaxAnnotationCount{$whichGene}\));
+      $annotCounts .= "<br/>"; }
 
     my $diameter = $diameterMultiplier * &calcNodeWidth($nodes{$node}{'counts'}{'anygene'}{'anytype'}, $anyRootNodeMaxAnnotationCount{'anygene'});
 # print qq(NODE $node DIAMETER $diameter E\n);
@@ -1099,8 +1104,9 @@ sub annotSummaryJsonCode {
     if ($geneOneId) {
       my $geneOnePieSize    = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
       my $geneTwoPieSize    = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
-      my $geneOnePieOpacity = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne};
-      my $geneTwoPieOpacity = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo};
+      my $opacityMultiplier = 0.5;
+      my $geneOnePieOpacity = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne} * $opacityMultiplier;
+      my $geneTwoPieOpacity = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo} * $opacityMultiplier;
       $pieInfo = qq("geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity); }
 
     my $cytId = $node; $cytId =~ s/://;
@@ -1299,7 +1305,9 @@ my $debugText = '';
 #       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
     elsif ($geneOneId) {
-      $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=' . $geneOneId . '&focusTermId=' . $focusTermId . '&datatype=' . $datatype; }
+      my ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
+      my ($geneOneName)   = $geneOneValue      =~ m/^(.*) \(/;
+      $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=' . $geneOneId . '&focusTermId=' . $focusTermId . '&geneOneName=' . $geneOneName . '&focusTermName=' . $focusTermName . '&datatype=' . $datatype; }
   if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) { $jsonUrl .= '&radio_etgo=' . $radio_etgo . '&rootsChosen=' . $roots; }
     elsif ($datatype eq 'phenotype') {                   $jsonUrl .= '&radio_etp='  . $radio_etp;                             }
     elsif ($datatype eq 'disease') {                     $jsonUrl .= '&radio_etd='  . $radio_etd;                             }
