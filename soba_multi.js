@@ -24,10 +24,10 @@ YAHOO.util.Event.addListener(window, "load", function() {          // on load as
 
 
 function setAutocompleteListeners() {                              // add listener for gene, species, pmids
-//     var autocompleteFieldsArray = ['Gene', 'Species', 'person'];
-    var autocompleteFieldsArray = ['Gene'];
-    for (var i = 0; i < autocompleteFieldsArray.length; i++) {     // for each field to autocomplete
-        var field = autocompleteFieldsArray[i];
+    var whichPage = document.getElementById('which_page').value;
+
+    if (whichPage === 'pickOneGenePage') {
+        var field = 'Gene';
         settingAutocompleteListeners = function() {
             var taxons = [];
             var arrCheckbox = document.getElementsByClassName("taxon");
@@ -44,7 +44,7 @@ function setAutocompleteListeners() {                              // add listen
             for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
               if (radioDatatypeElements[i].checked) {
                 datatypeValue = radioDatatypeElements[i].value; } }
-            var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=" + field + "&";   // ajax calls need curator and datatype
+            var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  
 //             var sUrl = cgiUrl + "?action=autocompleteXHR&taxonFq=" + taxonFq + "&field=" + field + "&";   // ajax calls need curator and datatype
             var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
             oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
@@ -71,7 +71,55 @@ function setAutocompleteListeners() {                              // add listen
                 forcedOAC: forcedOAC
             }
         }();
-    } // for (var i = 0; i < autocompleteFieldsArray.length; i++)
+    } // if (whichPage === 'pickOneGenePage')
+    else if (whichPage === 'pickTwoGenesPage') {
+        var autocompleteFieldsArray = ['One', 'Two'];
+        for (var j = 0; j < autocompleteFieldsArray.length; j++) {     // for each field to autocomplete
+            var fieldCount = autocompleteFieldsArray[j];
+            var field = 'Gene' + fieldCount;
+            settingAutocompleteListeners = function() {
+                var taxons = [];
+                var arrCheckbox = document.getElementsByClassName("taxon" + fieldCount);
+                for (var i = 0; arrCheckbox[i]; i++) {
+                  if (arrCheckbox[i].checked) {
+                     taxons.push('taxon_label:"'+ arrCheckbox[i].value + '"');
+                  }
+                } // for (i = arrCheckbox.length - 1; i > -1; i--)
+                var taxonFq = taxons.join('+OR+');
+//                 alert(taxonFq);
+                var datatypeValue = 'phenotype';
+                var radioDatatypeElements = document.getElementsByName("radio_datatype");
+                for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
+                  if (radioDatatypeElements[i].checked) {
+                    datatypeValue = radioDatatypeElements[i].value; } }
+                var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";
+                var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
+                oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
+                oDS.responseSchema = {                                 // Define the schema of the delimited results
+                    recordDelim: "\n",
+                    fieldDelim: "\t"
+                };
+                oDS.maxCacheEntries = 5;                               // Enable caching
+
+                var forcedOrFree = "forced";
+                var inputElement = document.getElementById('input_'+field);
+                var containerElement = document.getElementById(forcedOrFree + field + "Container");
+                var forcedOAC = new YAHOO.widget.AutoComplete(inputElement, containerElement, oDS);
+                forcedOAC.queryQuestionMark = false;                   // don't add a ? to the sUrl query since it's been built with some other values
+                forcedOAC.maxResultsDisplayed = 500;
+                forcedOAC.forceSelection = true;
+                forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelect);
+//                 if (fieldCount === 'One') {
+//                    forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelectOne); }
+//                 else if (fieldCount === 'Two') {
+//                    forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelectTwo); }
+                return {
+                    oDS: oDS,
+                    forcedOAC: forcedOAC
+                }
+            }();
+        } // for (var j = 0; j < autocompleteFieldsArray.length; j++) {     // for each field to autocomplete
+    } // if (whichPage === 'pickTwoGenesPage')
 
 
     // from http://stackoverflow.com/questions/1909441/jquery-keyup-delay
@@ -83,38 +131,41 @@ function setAutocompleteListeners() {                              // add listen
         };
     })();
 
-//     var oElement = document.getElementById("pmids");
-//     YAHOO.util.Event.addListener(oElement, "keyup", function() {
-//         delay(function(){
-// //             alert('Time elapsed!');
-//             var pmidTitles = document.getElementById("pmidTitles").value;
-//             var pmids      = document.getElementById("pmids").value;
-//             var callbacks = {
-//                 success : function (o) {                                  // Successful XHR response handler
-//                     if (o.responseText !== undefined) { document.getElementById('pmidTitles').value = o.responseText; } }, };
-//             pmids = convertDisplayToUrlFormat(pmids);                     // convert <newValue> to URL format by escaping characters
-//             pmidTitles = convertDisplayToUrlFormat(pmidTitles);           // convert <newValue> to URL format by escaping characters
-//             var sUrl = cgiUrl + "?action=pmidToTitle&pmids="+pmids+"&pmidTitles="+pmidTitles;
-//                 YAHOO.util.Connect.asyncRequest('GET', sUrl, callbacks);      // Make the call to the server for term info data
-//             
-//         }, 1000 );
-//     });
-
 } // function setAutocompleteListeners()
 
 function onAutocompleteItemSelect(oSelf , elItem) {          // if an item is highlighted from arrows or mouseover, populate obo
-//   var match = elItem[0]._sName.match(/input_(.*)/);             // get the key and value
-//   var field = match[1];
-  var value = elItem[1].innerHTML;                              // get the selected value
-  var datatypeValue = 'phenotype';
-  var radioDatatypeElements = document.getElementsByName("radio_datatype");
-  for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
-    if (radioDatatypeElements[i].checked) {
-      datatypeValue = radioDatatypeElements[i].value; } }
-  var url = 'soba_multi.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&datatype=' + datatypeValue + '&autocompleteValue=' + value;
-
-  window.location = url;
-}
+  var match = elItem[0]._sName.match(/input_(.*)/);             // get the key and value
+  var field = match[1];
+  console.log('field: ' + field);
+  if (field === 'Gene') {
+    var value = elItem[1].innerHTML;                              // get the selected value
+    var datatypeValue = 'phenotype';
+    var radioDatatypeElements = document.getElementsByName("radio_datatype");
+    for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
+      if (radioDatatypeElements[i].checked) {
+        datatypeValue = radioDatatypeElements[i].value; } }
+    var url = 'soba_multi.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&datatype=' + datatypeValue + '&autocompleteValue=' + value;
+    window.location = url; }
+  else if (field === 'GeneOne') {
+    document.getElementById('controlsOne').style.display = 'none';
+    document.getElementById('controlsTwo').style.display = ''; }
+  else if (field === 'GeneTwo') {
+    var value = elItem[1].innerHTML;                              // get the selected value
+    console.log('genetwo');
+    var geneOneValue = document.getElementById('input_GeneOne').value;
+    console.log('genetwo');
+    var datatypeValue = 'phenotype';
+    var radioDatatypeElements = document.getElementsByName("radio_datatype");
+    console.log('genetwo');
+    for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
+      if (radioDatatypeElements[i].checked) {
+        datatypeValue = radioDatatypeElements[i].value; } }
+    console.log('genetwo');
+    var url = 'soba_multi.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&datatype=' + datatypeValue + '&geneOneValue=' + geneOneValue + '&autocompleteValue=' + value;
+    console.log('genetwo');
+    console.log('genetwo: ' + url);
+    window.location = url; }
+} // function onAutocompleteItemSelect(oSelf , elItem) 
 
 // function asyncWbdescription(wbgene) {
 //   var callbacks = {
