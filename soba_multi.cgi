@@ -1070,10 +1070,11 @@ sub annotSummaryJsonCode {
     my $borderWidthRoot_weighted = 4 * $borderWidth;
     my $borderWidthRoot_unweighted = 8;				# scaled diameter and fontSize to keep borderWidth the same, but passing values in case we ever want to change them, we won't have to change the cytoscape receiving the json
     my $labelColor = 'black'; if ($node eq 'GO:0000000') { $labelColor = '#fff'; }
-    if ($geneOneId) {
-      if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'purple'; }
-        elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { $labelColor = 'blue'; }
-        elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'red'; } }
+# for testing gene one vs gene two by font colour
+#     if ($geneOneId) {
+#       if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'purple'; }
+#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { $labelColor = 'blue'; }
+#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'red'; } }
     my $backgroundColor = 'white'; 
     my $nodeExpandable = 'false'; 
 # label nodes green if they have a child it could expand into, not relevant 2019 02 08
@@ -1105,15 +1106,18 @@ sub annotSummaryJsonCode {
     if ($geneOneId) {
       $geneOnePieSize    = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
       $geneTwoPieSize    = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
-      my $opacityMultiplier = 0.5;
-      $geneOnePieOpacity = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne} * $opacityMultiplier;
-      $geneTwoPieOpacity = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo} * $opacityMultiplier; }
+      my $opacityMultiplier = 0.3;
+      my $opacityFloor = 0.40;
+      $geneOnePieOpacity = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor;
+      $geneTwoPieOpacity = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor; }
     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity);
 
     my $cytId = $node; $cytId =~ s/://;
+#     my $nodeColor  = 'blue';  	# to colour code nodes by direct vs inferred
+    my $nodeColor  = 'black';  
     if ($rootNodes{$node}) {
       next unless (($nodes{$node}{'counts'}{'anygene'}{'anytype'}) || ($objectsQvalue)); 	# only add a root if it has annotations or is soba by ontology terms, which don't have annoatations
-      my $nodeColor  = 'blue';  if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
+      if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
       if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
 #         $node =~ s/GO://; 
@@ -1121,13 +1125,15 @@ sub annotSummaryJsonCode {
       elsif ($nodes{$node}{lca}) {
 # print qq(LCA NODE $node\n);
         if ($goslimIds{$node}) { $backgroundColor = 'blue'; }
+#         $nodeColor = 'blue';					# to colour code nodes by direct vs inferred
 #         $node =~ s/GO://; 
-          push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });   }
+          push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });   }
       elsif ($nodes{$node}{annot}) {
 # print qq(ANNOT NODE $node\n);
-         if ($goslimIds{$node}) { $backgroundColor = 'red'; }
+        if ($goslimIds{$node}) { $backgroundColor = 'red'; }
+#         $nodeColor = 'red';					# to colour code nodes by direct vs inferred
 #          $node =~ s/GO://; 
-         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "red", "annotationDirectness" : "direct", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });     } 
+         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "direct", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });     } 
       else {
 # print qq(OTHER NODE $node\n); 
     }
@@ -1432,7 +1438,7 @@ Content-type: text/html\n
             'background-color': 'data(backgroundColor)',
             'color': 'data(labelColor)',
             'shape': 'data(nodeShape)',
-            'pie-size': '80%',
+            'pie-size': '90%',
             'pie-1-background-color': 'red',
             'pie-1-background-size': 'mapData(geneOnePieSize, 0, 100, 0, 100)',
             'pie-1-background-opacity': 'data(geneOnePieOpacity)',
@@ -1447,7 +1453,8 @@ Content-type: text/html\n
             'text-valign': 'center',
             'text-wrap': 'wrap',
 //             'min-zoomed-font-size': 8,		// FIX PUT THIS BACK
-            'border-opacity': 0.3,
+//             'border-opacity': 0.3,
+            'border-opacity': 0.5,
             'background-opacity': 0.3,
             'font-size': 'data(fontSize)'
           })
