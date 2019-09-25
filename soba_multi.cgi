@@ -1120,18 +1120,19 @@ sub annotSummaryJsonCode {
       if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
       if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
+        unless ($geneOneId) { $nodeColor = 'blue'; }					# to colour code nodes by direct vs inferred
 #         $node =~ s/GO://; 
         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable" $pieInfo } }); }
       elsif ($nodes{$node}{lca}) {
 # print qq(LCA NODE $node\n);
         if ($goslimIds{$node}) { $backgroundColor = 'blue'; }
-#         $nodeColor = 'blue';					# to colour code nodes by direct vs inferred
+        unless ($geneOneId) { $nodeColor = 'blue'; }					# to colour code nodes by direct vs inferred
 #         $node =~ s/GO://; 
           push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });   }
       elsif ($nodes{$node}{annot}) {
 # print qq(ANNOT NODE $node\n);
         if ($goslimIds{$node}) { $backgroundColor = 'red'; }
-#         $nodeColor = 'red';					# to colour code nodes by direct vs inferred
+        unless ($geneOneId) { $nodeColor = 'red'; }					# to colour code nodes by direct vs inferred
 #          $node =~ s/GO://; 
          push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "direct", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });     } 
       else {
