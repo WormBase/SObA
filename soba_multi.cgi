@@ -1101,16 +1101,27 @@ sub annotSummaryJsonCode {
     }
 
 
-    my $geneOnePieSize = 0;    my $geneTwoPieSize = 0;
-    my $geneOnePieOpacity = 0; my $geneTwoPieOpacity = 0;
+    my $geneOnePieSize = 0;        my $geneOnePieOpacity = 0.5; 
+    my $geneTwoPieSize = 0;        my $geneTwoPieOpacity = 0.5;
+    my $geneOneMinusPieSize = 0;   my $geneOneMinusPieOpacity = 0; 
+    my $geneTwoMinusPieSize = 0;   my $geneTwoMinusPieOpacity = 0;
     if ($geneOneId) {
-      $geneOnePieSize    = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
-      $geneTwoPieSize    = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
-      my $opacityMultiplier = 0.3;
-      my $opacityFloor = 0.40;
-      $geneOnePieOpacity = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor;
-      $geneTwoPieOpacity = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor; }
-    my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity);
+#       $geneOnePieSize    = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
+#       $geneTwoPieSize    = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
+#       my $opacityMultiplier = 0.3;
+#       my $opacityFloor = 0.40;
+#       $geneOnePieOpacity = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor;
+#       $geneTwoPieOpacity = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor;
+
+      $geneOnePieSize    = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne} * 50;
+      $geneTwoPieSize    = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo} * 50;
+      $geneOneMinusPieSize    = 50 - $geneOnePieSize;
+      $geneTwoMinusPieSize    = 50 - $geneTwoPieSize;
+    }
+
+
+#     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity);
+    my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneOneMinusPieSize" : $geneOneMinusPieSize, "geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity);
 
     my $cytId = $node; $cytId =~ s/://;
 #     my $nodeColor  = 'blue';  	# to colour code nodes by direct vs inferred
@@ -1443,9 +1454,15 @@ Content-type: text/html\n
             'pie-1-background-color': 'red',
             'pie-1-background-size': 'mapData(geneOnePieSize, 0, 100, 0, 100)',
             'pie-1-background-opacity': 'data(geneOnePieOpacity)',
-            'pie-2-background-color': 'blue',
-            'pie-2-background-size': 'mapData(geneTwoPieSize, 0, 100, 0, 100)',
-            'pie-2-background-opacity': 'data(geneTwoPieOpacity)',
+            'pie-2-background-color': 'white',
+            'pie-2-background-size': 'mapData(geneOneMinusPieSize, 0, 100, 0, 100)',
+            'pie-2-background-opacity': 'data(geneOneMinusPieOpacity)',
+            'pie-4-background-color': 'blue',
+            'pie-4-background-size': 'mapData(geneTwoPieSize, 0, 100, 0, 100)',
+            'pie-4-background-opacity': 'data(geneTwoPieOpacity)',
+            'pie-3-background-color': 'white',
+            'pie-3-background-size': 'mapData(geneTwoMinusPieSize, 0, 100, 0, 100)',
+            'pie-3-background-opacity': 'data(geneTwoMinusPieOpacity)',
             'border-color': 'data(nodeColor)',
             'border-style': 'data(borderStyle)',
             'border-width': 'data(borderWidth)',
