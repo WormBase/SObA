@@ -1071,12 +1071,12 @@ sub annotSummaryJsonCode {
     my $borderWidthRoot_weighted = 4 * $borderWidth;
     my $borderWidthRoot_unweighted = 8;				# scaled diameter and fontSize to keep borderWidth the same, but passing values in case we ever want to change them, we won't have to change the cytoscape receiving the json
     my $labelColor = 'black'; if ($node eq 'GO:0000000') { $labelColor = '#fff'; }
+    my $backgroundColor = 'white'; 
 # for testing gene one vs gene two by font colour
 #     if ($geneOneId) {
 #       if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'purple'; }
-#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { $labelColor = 'blue'; }
-#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'red'; } }
-    my $backgroundColor = 'white'; 
+#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { $labelColor = 'red'; }
+#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'blue'; } }
     my $nodeExpandable = 'false'; 
 # label nodes green if they have a child it could expand into, not relevant 2019 02 08
 #     foreach my $child (sort keys %{ $edgesLca{$node} }) {               # each child of node
@@ -1102,11 +1102,17 @@ sub annotSummaryJsonCode {
     }
 
 
-    my $geneOnePieSize = 0;        my $geneOnePieOpacity = 0.5; 
-    my $geneTwoPieSize = 0;        my $geneTwoPieOpacity = 0.5;
-    my $geneOneMinusPieSize = 0;   my $geneOneMinusPieOpacity = 0; 
-    my $geneTwoMinusPieSize = 0;   my $geneTwoMinusPieOpacity = 0;
+    my $geneOnePieSize      = 0; my $geneOnePieOpacity      = 0.5;  my $geneOnePieColor      = 'red';
+    my $geneTwoPieSize      = 0; my $geneTwoPieOpacity      = 0.5;  my $geneTwoPieColor      = 'blue';
+    my $geneOneMinusPieSize = 0; my $geneOneMinusPieOpacity = 0.2;  my $geneOneMinusPieColor = 'red';
+    my $geneTwoMinusPieSize = 0; my $geneTwoMinusPieOpacity = 0.2;  my $geneTwoMinusPieColor = 'blue';
     if ($geneOneId) {
+      if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
+          $geneOneMinusPieColor = 'purple'; $geneTwoMinusPieColor = 'purple'; }
+        elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { 
+          $geneOneMinusPieColor = 'red'; $geneTwoMinusPieColor = 'red'; }
+        elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
+          $geneOneMinusPieColor = 'blue'; $geneTwoMinusPieColor = 'blue'; }
 #       $geneOnePieSize    = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
 #       $geneTwoPieSize    = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
 #       my $opacityMultiplier = 0.3;
@@ -1122,7 +1128,7 @@ sub annotSummaryJsonCode {
 
 
 #     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity);
-    my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneOneMinusPieSize" : $geneOneMinusPieSize, "geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity);
+    my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneOnePieColor" : "$geneOnePieColor", "geneOneMinusPieSize" : $geneOneMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneOneMinusPieColor" : "$geneOneMinusPieColor", "geneTwoPieSize" : $geneTwoPieSize, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneTwoPieColor" : "$geneTwoPieColor", "geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity, "geneTwoMinusPieColor" : "$geneTwoMinusPieColor");
 
     my $cytId = $node; $cytId =~ s/://;
 #     my $nodeColor  = 'blue';  	# to colour code nodes by direct vs inferred
@@ -1452,16 +1458,16 @@ Content-type: text/html\n
             'color': 'data(labelColor)',
             'shape': 'data(nodeShape)',
             'pie-size': '90%',
-            'pie-1-background-color': 'red',
+            'pie-1-background-color': 'data(geneOnePieColor)',
             'pie-1-background-size': 'mapData(geneOnePieSize, 0, 100, 0, 100)',
             'pie-1-background-opacity': 'data(geneOnePieOpacity)',
-            'pie-2-background-color': 'white',
+            'pie-2-background-color': 'data(geneOneMinusPieColor)',
             'pie-2-background-size': 'mapData(geneOneMinusPieSize, 0, 100, 0, 100)',
             'pie-2-background-opacity': 'data(geneOneMinusPieOpacity)',
-            'pie-4-background-color': 'blue',
+            'pie-4-background-color': 'data(geneTwoPieColor)',
             'pie-4-background-size': 'mapData(geneTwoPieSize, 0, 100, 0, 100)',
             'pie-4-background-opacity': 'data(geneTwoPieOpacity)',
-            'pie-3-background-color': 'white',
+            'pie-3-background-color': 'data(geneTwoMinusPieColor)',
             'pie-3-background-size': 'mapData(geneTwoMinusPieSize, 0, 100, 0, 100)',
             'pie-3-background-opacity': 'data(geneTwoMinusPieOpacity)',
             'border-color': 'data(nodeColor)',
