@@ -1104,11 +1104,11 @@ sub annotSummaryJsonCode {
 
     my $geneOnePieSize      = 0; my $geneOnePieOpacity      = 0.5;  my $geneOnePieColor      = 'red';
     my $geneTwoPieSize      = 0; my $geneTwoPieOpacity      = 0.5;  my $geneTwoPieColor      = 'blue';
-    my $geneOneMinusPieSize = 0; my $geneOneMinusPieOpacity = 0.2;  my $geneOneMinusPieColor = 'red';
-    my $geneTwoMinusPieSize = 0; my $geneTwoMinusPieOpacity = 0.2;  my $geneTwoMinusPieColor = 'blue';
+    my $geneOneMinusPieSize = 0; my $geneOneMinusPieOpacity = 0.3;  my $geneOneMinusPieColor = 'red';
+    my $geneTwoMinusPieSize = 0; my $geneTwoMinusPieOpacity = 0.3;  my $geneTwoMinusPieColor = 'blue';
     if ($geneOneId) {
       if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
-          $geneOneMinusPieColor = 'purple'; $geneTwoMinusPieColor = 'purple'; }
+          $geneOneMinusPieColor = 'yellow'; $geneTwoMinusPieColor = 'yellow'; $geneOneMinusPieOpacity = 1.0; $geneTwoMinusPieOpacity = 1.0; }
         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { 
           $geneOneMinusPieColor = 'red'; $geneTwoMinusPieColor = 'red'; }
         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
