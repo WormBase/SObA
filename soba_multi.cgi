@@ -1134,6 +1134,7 @@ sub annotSummaryJsonCode {
     my $geneTwoMinusPieSizeTotalcount = 0; my $geneTwoMinusPieOpacityTotalcount = 0.3;  my $geneTwoMinusPieColorTotalcount = 'blue';
     my $geneOneMinusPieSizePercentage = 0; my $geneOneMinusPieOpacityPercentage = 0.3;  my $geneOneMinusPieColorPercentage = 'red';
     my $geneTwoMinusPieSizePercentage = 0; my $geneTwoMinusPieOpacityPercentage = 0.3;  my $geneTwoMinusPieColorPercentage = 'blue';
+    my $whichGeneHighlight = '';
     if ($geneOneId) {
         # slicing by total count
       $geneOnePieSizeTotalcount   = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
@@ -1145,10 +1146,13 @@ sub annotSummaryJsonCode {
 
         # slicing by percentage count
       if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
+          $whichGeneHighlight = 'geneBoth';
           $geneOneMinusPieColorPercentage = 'yellow'; $geneTwoMinusPieColorPercentage = 'yellow'; $geneOneMinusPieOpacityPercentage = 1.0; $geneTwoMinusPieOpacityPercentage = 1.0; }
         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { 
+          $whichGeneHighlight = 'geneOne';
           $geneOneMinusPieColorPercentage = 'red'; $geneTwoMinusPieColorPercentage = 'red'; }
         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
+          $whichGeneHighlight = 'geneTwo';
           $geneOneMinusPieColorPercentage = 'blue'; $geneTwoMinusPieColorPercentage = 'blue'; }
       $geneOnePieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * 5);	# 10% chunks
       $geneTwoPieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * 5);
@@ -1174,6 +1178,7 @@ sub annotSummaryJsonCode {
 #     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity);
 #     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneOnePieColor" : "$geneOnePieColor", "geneOneMinusPieSize" : $geneOneMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneOneMinusPieColor" : "$geneOneMinusPieColor", "geneTwoPieSize" : $geneTwoPieSize, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneTwoPieColor" : "$geneTwoPieColor", "geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity, "geneTwoMinusPieColor" : "$geneTwoMinusPieColor");
     my $pieInfo = qq(, );
+    $pieInfo .= qq("whichGeneHighlight" : "$whichGeneHighlight", );
     $pieInfo .= qq("geneOnePieSize" : $geneOnePieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneOnePieColor" : "$geneOnePieColor", );
     $pieInfo .= qq("geneTwoPieSize" : $geneTwoPieSize, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneTwoPieColor" : "$geneTwoPieColor", );
     $pieInfo .= qq("geneOnePieSizeTotalcount" : $geneOnePieSizeTotalcount, "geneOnePieOpacityTotalcount" : $geneOnePieOpacityTotalcount, "geneOnePieColorTotalcount" : "$geneOnePieColorTotalcount", );
@@ -1386,12 +1391,13 @@ my $debugText = '';
 # FIX
 #   $focusTermId = 'WB:WBGene00001135';
   my $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
+  my $geneOneName = ''; my $focusTermName = '';
   if ($processType eq 'analyze_pairs') {
 #       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
     elsif ($geneOneId) {
-      my ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
-      my ($geneOneName)   = $geneOneValue      =~ m/^(.*) \(/;
+      ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
+      ($geneOneName)   = $geneOneValue      =~ m/^(.*) \(/;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=' . $geneOneId . '&focusTermId=' . $focusTermId . '&geneOneName=' . $geneOneName . '&focusTermName=' . $focusTermName . '&datatype=' . $datatype; }
   if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) { $jsonUrl .= '&radio_etgo=' . $radio_etgo . '&rootsChosen=' . $roots; }
     elsif ($datatype eq 'phenotype') {                   $jsonUrl .= '&radio_etp='  . $radio_etp;                             }
@@ -1494,6 +1500,9 @@ Content-type: text/html\n
   function initCy( then ){
     var elements = then[0].elements;
     \$('#controldiv').show(); \$('#loadingdiv').hide();	// show controls and hide loading when graph loaded
+    if ('$geneOneId' !== '') {
+        \$('#whichgenehighlight').show();
+        \$('#pietype').show(); }
     if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) {
         \$('#trAllianceSlimWith').show(); 
         \$('#trAllianceSlimWithout').show(); 
@@ -1746,6 +1755,39 @@ Content-type: text/html\n
 //             'width': 'data(diameter)',
 //             'height': 'data(diameter)',
 
+  \$('#radio_whichgenehighlight_all').on('click', function(){
+    cyPhenGraph.elements().removeClass('faded');
+  });
+
+  \$('#radio_whichgenehighlight_geneOne').on('click', function(){
+console.log('radio_whichgenehighlight_geneOne');
+    cyPhenGraph.elements().removeClass('faded');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      if (node.data('whichGeneHighlight') !== 'geneOne') { node.addClass('faded'); }
+    }
+  });
+
+  \$('#radio_whichgenehighlight_geneTwo').on('click', function(){
+console.log('radio_whichgenehighlight_geneTwo');
+    cyPhenGraph.elements().removeClass('faded');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      if (node.data('whichGeneHighlight') !== 'geneTwo') { node.addClass('faded'); }
+    }
+  });
+
+  \$('#radio_whichgenehighlight_geneBoth').on('click', function(){
+console.log('radio_whichgenehighlight_geneBoth');
+    cyPhenGraph.elements().removeClass('faded');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      if (node.data('whichGeneHighlight') !== 'geneBoth') { node.addClass('faded'); }
+    }
+  });
 
   \$('#radio_pietype_percentage').on('click', function(){
 console.log('radio_pietype_percentage');
@@ -2012,12 +2054,21 @@ $analyzePairsText
     <form method="get" action="soba_biggo.cgi">
       <div id="weightstate" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
         <input type="radio" name="radio_type" id="radio_weighted"   checked="checked" >$legendWeightstateWeighted</input><br/>
-        <input type="radio" name="radio_type" id="radio_unweighted">$legendWeightstateUnweighted</input><br/>
-      </div><br/>
-      <div id="pietype" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
+        <input type="radio" name="radio_type" id="radio_unweighted">$legendWeightstateUnweighted</input><br/><br/>
+      </div>
+      <div id="pietype" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display:none;">
         <input type="radio" name="radio_pietype" id="radio_pietype_totalcount"   checked="checked" >$legendPietypeTotalcount</input><br/>
-        <input type="radio" name="radio_pietype" id="radio_pietype_percentage">$legendPietypePercentage</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_pietype" id="radio_pietype_percentage">$legendPietypePercentage</input><br/><br/>
+      </div>
+      <div id="whichgenehighlight" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display:none;">
+        <!--Highlight gene nodes :<br/>-->
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_all"   checked="checked" >All nodes</input><br/>
+        <!--<input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneOne"><a href='https://wormbase.org/species/c_elegans/gene/$geneOneId' target='_blank' style='color: red'>$geneOneName</a></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneTwo"><a href='https://wormbase.org/species/c_elegans/gene/$focusTermId' target='_blank' style='color: blue'>$focusTermName</a></input><br/>-->
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneOne"><span style='color: red'>$geneOneName</span></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneTwo"><span style='color: blue'>$focusTermName</span></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneBoth">both genes</input><br/><br/>
+      </div>
       $legendSkipEvidenceStart
       <div id="evidencetypeanatomy" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_eta"  id="radio_eta_all"             value="radio_eta_all"             $checked_radio_eta_all >all evidence types</input><br/>
