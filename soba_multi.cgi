@@ -1388,6 +1388,8 @@ my $debugText = '';
     } # foreach my $goid (sort keys %goslimIds)
   }
 
+  my $withoutDirectLegendNodeColor = 'blue';
+  my $withDirectLegendNodeColor    = 'red';
 # FIX
 #   $focusTermId = 'WB:WBGene00001135';
   my $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
@@ -1396,6 +1398,8 @@ my $debugText = '';
 #       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
     elsif ($geneOneId) {
+      $withoutDirectLegendNodeColor = 'black';
+      $withDirectLegendNodeColor    = 'black';
       ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
       ($geneOneName)   = $geneOneValue      =~ m/^(.*) \(/;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=' . $geneOneId . '&focusTermId=' . $focusTermId . '&geneOneName=' . $geneOneName . '&focusTermName=' . $focusTermName . '&datatype=' . $datatype; }
@@ -1503,7 +1507,7 @@ Content-type: text/html\n
     if ('$geneOneId' !== '') {
         \$('#whichgenehighlight').show();
         \$('#pietype').show(); }
-    if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) {
+    if ( ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) && ('$geneOneId' === '') ) {
         \$('#trAllianceSlimWith').show(); 
         \$('#trAllianceSlimWithout').show(); 
         \$('#evidencetypego').show(); 
@@ -2015,6 +2019,7 @@ $analyzePairsText
     </div>
     <div id="legenddiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
     <span id="autocompleteValue">$autocompleteValue</span><br/><br/>
+    <span id="geneOneValue">$geneOneValue</span><br/><br/>
     <span id="descriptionTerms">$descriptionTerms</span><br/><br/>
     <span id="nodeCount" style="display: $show_node_count ">node count<br/></span>
     <span id="edgeCount" style="display: $show_node_count ">edge count<br/></span>
@@ -2025,19 +2030,19 @@ $analyzePairsText
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
-    <polygon fill="none" stroke="blue" stroke-dasharray="5,2" points="36,-36 0,-36 0,-0 36,-0 36,-36"/></g></g></svg></td><td valign="center">Root</td></tr>
+    <polygon fill="none" stroke="$withoutDirectLegendNodeColor" stroke-dasharray="5,2" points="36,-36 0,-36 0,-0 36,-0 36,-36"/></g></g></svg></td><td valign="center">Root</td></tr>
 
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
-    <ellipse fill="none" stroke="blue" stroke-dasharray="5,2" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendBlueNodeText</td></tr>
+    <ellipse fill="none" stroke="$withoutDirectLegendNodeColor" stroke-dasharray="5,2" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendBlueNodeText</td></tr>
 
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
-    <ellipse fill="none" stroke="red" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendRedNodeText</td></tr>
+    <ellipse fill="none" stroke="$withDirectLegendNodeColor" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendRedNodeText</td></tr>
 
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0 0 292.64526 63.826207">
     <defs><marker id="marker4922" style="overflow:visible"> <path style="fill:#949494;fill-opacity:1;fill-rule:evenodd;stroke:#5f5f5f;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1" d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z" transform="matrix(-1.1,0,0,-1.1,-1.1,0)" /> </marker> </defs>
