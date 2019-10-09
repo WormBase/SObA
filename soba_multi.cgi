@@ -2018,8 +2018,8 @@ $analyzePairsText
       <button id="view_edit_button" style="display: none;">go back</button><br/>
     </div>
     <div id="legenddiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
-    <span id="autocompleteValue">$autocompleteValue</span><br/><br/>
     <span id="geneOneValue">$geneOneValue</span><br/><br/>
+    <span id="autocompleteValue">$autocompleteValue</span><br/><br/>
     <span id="descriptionTerms">$descriptionTerms</span><br/><br/>
     <span id="nodeCount" style="display: $show_node_count ">node count<br/></span>
     <span id="edgeCount" style="display: $show_node_count ">edge count<br/></span>
