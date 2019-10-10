@@ -833,23 +833,6 @@ sub annotSummaryJsonCode {
 
   my @nodes = ();
 
-  my %rootNodesTotalAnnotationCount;
-  my @whichGenes = qw( geneOne geneTwo );
-  my $solr_url = $base_solr_url . $datatype . '/';
-  foreach my $whichGene (@whichGenes) {
-    my $geneId = $geneOneId;
-    if ($whichGene eq 'geneTwo') { $geneId = $focusTermId; }
-    next unless $geneId;
-    my $total_annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $geneId . '%22';
-    my $page_data   = get $total_annotation_count_solr_url;                                           # get the URL
-#     print qq( total_annotation_count_solr_url $total_annotation_count_solr_url\n);
-    my $perl_scalar = $json->decode( $page_data );                        # get the solr data
-    my %jsonHash    = %$perl_scalar;
-    if ($jsonHash{'response'}{'numFound'} == 0) { 
-        $rootNodesTotalAnnotationCount{$whichGene} = 1;
-        $errorMessage .= qq($geneId total annotation count not found<br/>); }
-      else {
-        $rootNodesTotalAnnotationCount{$whichGene} = $jsonHash{'response'}{'numFound'}; } }
 
   my %rootNodes; 
   my %anyRootNodeMaxAnnotationCount;
@@ -858,6 +841,28 @@ sub annotSummaryJsonCode {
     foreach my $whichGene (sort keys %{ $nodes{$root}{'counts'} }) {
       if ($nodes{$root}{'counts'}{$whichGene}{'anytype'} > $anyRootNodeMaxAnnotationCount{$whichGene}) { 
         $anyRootNodeMaxAnnotationCount{$whichGene} = $nodes{$root}{'counts'}{$whichGene}{'anytype'}; } } }
+
+  my %rootNodesTotalAnnotationCount;
+  my @whichGenes = qw( geneOne geneTwo );
+  my $solr_url = $base_solr_url . $datatype . '/';
+  foreach my $whichGene (@whichGenes) {
+    my $geneId = $geneOneId;
+    if ($whichGene eq 'geneTwo') { $geneId = $focusTermId; }
+    next unless $geneId;
+    if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {		# go with multi roots has a special query Raymond chose to find total annotations for a gene
+        my $total_annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $geneId . '%22';
+        my $page_data   = get $total_annotation_count_solr_url;                                           # get the URL
+#         print qq( total_annotation_count_solr_url $total_annotation_count_solr_url\n);
+        my $perl_scalar = $json->decode( $page_data );                        # get the solr data
+        my %jsonHash    = %$perl_scalar;
+        if ($jsonHash{'response'}{'numFound'} == 0) { 
+            $rootNodesTotalAnnotationCount{$whichGene} = 1;
+            $errorMessage .= qq($geneId total annotation count not found<br/>); }
+          else {
+            $rootNodesTotalAnnotationCount{$whichGene} = $jsonHash{'response'}{'numFound'}; } }
+      else {								# datatypes with one root just take the maximum annotations any node has
+        $rootNodesTotalAnnotationCount{$whichGene} = $anyRootNodeMaxAnnotationCount{$whichGene}; } }
+
   if ($fakeRootFlag) { 
     if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
       $rootNodes{'GO:0000000'}++; } }
