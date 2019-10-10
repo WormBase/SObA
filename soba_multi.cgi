@@ -580,7 +580,8 @@ sub calculateNodesAndEdges {
       my $perl_scalar = $json->decode( $page_data );                        # get the solr data
       my %jsonHash    = %$perl_scalar;
 
-      if ($jsonHash{'response'}{'numFound'} == 0) { return ($toReturn, \%nodes, \%nodes); }	# return nothing if there are no annotations found
+#       if ($jsonHash{'response'}{'numFound'} == 0) { return ($toReturn, \%nodes, \%nodes); }	# return nothing if there are no annotations found
+      next if ($jsonHash{'response'}{'numFound'} == 0);		 	# skip if there are no annotations found, can't return because could have 2 genes
 
       foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
         my $nodeIdAnnotated = $$doc{'annotation_class'};
@@ -598,7 +599,7 @@ sub calculateNodesAndEdges {
               if ($evidenceType) {
 # FIX ?  nodeIdInferred -> nodeIdAnnotany ?
                 foreach my $nodeIdInferred (@{ $$doc{'regulates_closure'} }) {
-#     print qq(NODE GOID $nodeIdInferred 1\n);
+#       print qq(NODE whichGene $whichGene GOID $nodeIdInferred 1\n);
                   $annotationNodeidWhichgene{'any'}{$nodeIdInferred}{$whichGene}++;	# track which gene inferred nodes came from
 #                   $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$evidenceType}++;  
                   $nodes{$nodeIdInferred}{'counts'}{'anygene'}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{$evidenceType}++;  
@@ -607,7 +608,7 @@ sub calculateNodesAndEdges {
             my $evidenceType = $idarray[6];
             if ($datatype eq 'lifestage') { if ($evidenceType eq 'IDA') { $evidenceType = 'Gene Expression'; } }
             foreach my $nodeIdInferred (@{ $$doc{'regulates_closure'} }) {
-#     print qq(NODE GOID $nodeIdInferred 2\n);
+#     print qq(NODE whichGene $whichGene GOID $nodeIdInferred 2\n);
               $annotationNodeidWhichgene{'any'}{$nodeIdInferred}{$whichGene}++;		# track which gene inferred nodes came from
 #               $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$evidenceType}++;  
               $nodes{$nodeIdInferred}{'counts'}{'anygene'}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{$evidenceType}++;  
@@ -820,7 +821,8 @@ sub annotSummaryJsonCode {
   my %nodes    = %$nodesHashref;
 # foreach my $node (sort keys %nodes) { print qq(RETURNED NODES $node\n); }
   my %edgesLca = %$edgesLcaHashref;
-  my %annotationNodeidWhichgene = %$annotationNodeidWhichgeneHashref;
+  my %annotationNodeidWhichgene = ();
+  if ($annotationNodeidWhichgeneHashref) { %annotationNodeidWhichgene = %$annotationNodeidWhichgeneHashref; }
   if ($fakeRootFlag) { 
     if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
       my $fakeRoot = 'GO:0000000';
@@ -1146,8 +1148,10 @@ sub annotSummaryJsonCode {
       $geneTwoPieSizeTotalcount   = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
       my $opacityMultiplier = 0.3;
       my $opacityFloor = 0.40;
-      $geneOnePieOpacityTotalcount = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor;
-      $geneTwoPieOpacityTotalcount = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor;
+      if ($rootNodesTotalAnnotationCount{geneOne}) {
+        $geneOnePieOpacityTotalcount = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor; }
+      if ($rootNodesTotalAnnotationCount{geneTwo}) {
+        $geneTwoPieOpacityTotalcount = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor; }
 
         # slicing by percentage count
       if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
@@ -1159,8 +1163,10 @@ sub annotSummaryJsonCode {
         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
           $whichGeneHighlight = 'geneTwo';
           $geneOneMinusPieColorPercentage = 'blue'; $geneTwoMinusPieColorPercentage = 'blue'; }
-      $geneOnePieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * 5);	# 10% chunks
-      $geneTwoPieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * 5);
+      if ($rootNodesTotalAnnotationCount{geneOne}) {
+        $geneOnePieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * 5); }	# 10% chunks
+      if ($rootNodesTotalAnnotationCount{geneTwo}) {
+        $geneTwoPieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * 5); }
       $geneOneMinusPieSizePercentage = 50 - $geneOnePieSizePercentage;
       $geneTwoMinusPieSizePercentage = 50 - $geneTwoPieSizePercentage;
 
