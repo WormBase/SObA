@@ -331,14 +331,17 @@ EndOfText
 
   print qq(<input type="hidden" name="which_page" id="which_page" value="pickTwoGenesPage">\n);
 
-  my $datatype = 'biggo';		# by defalt for front page
+#   my $datatype = 'biggo';		# by defalt for front page
+  my $datatype = 'phenotype';		# by defalt for front page
   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
   my $page_data = get $solr_taxon_url;
   my $perl_scalar = $json->decode( $page_data );
   my %jsonHash = %$perl_scalar;
 
   print qq(Select a datatype to display.<br/>\n);
-  my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+# UNDO for biggo
+#   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+  my @datatypes = qw( anatomy disease go lifestage phenotype );
   foreach my $datatype (@datatypes) {
     my $checked = '';
     if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
@@ -427,14 +430,17 @@ EndOfText
 
   print qq(<input type="hidden" name="which_page" id="which_page" value="pickOneGenePage">\n);
 
-  my $datatype = 'biggo';		# by defalt for front page
+#   my $datatype = 'biggo';		# by defalt for front page
+  my $datatype = 'phenotype';		# by defalt for front page
   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
   my $page_data = get $solr_taxon_url;
   my $perl_scalar = $json->decode( $page_data );
   my %jsonHash = %$perl_scalar;
 
   print qq(Select a datatype to display.<br/>\n);
-  my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+# UNDO for biggo
+#   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+  my @datatypes = qw( anatomy disease go lifestage phenotype );
   foreach my $datatype (@datatypes) {
     my $checked = '';
     if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
@@ -1139,8 +1145,8 @@ sub annotSummaryJsonCode {
     my $geneTwoMinusPieSize           = 0; my $geneTwoMinusPieOpacity           = 0.3;  my $geneTwoMinusPieColor           = 'blue';
     my $geneOneMinusPieSizeTotalcount = 0; my $geneOneMinusPieOpacityTotalcount = 0.3;  my $geneOneMinusPieColorTotalcount = 'red';
     my $geneTwoMinusPieSizeTotalcount = 0; my $geneTwoMinusPieOpacityTotalcount = 0.3;  my $geneTwoMinusPieColorTotalcount = 'blue';
-    my $geneOneMinusPieSizePercentage = 0; my $geneOneMinusPieOpacityPercentage = 0.3;  my $geneOneMinusPieColorPercentage = 'red';
-    my $geneTwoMinusPieSizePercentage = 0; my $geneTwoMinusPieOpacityPercentage = 0.3;  my $geneTwoMinusPieColorPercentage = 'blue';
+    my $geneOneMinusPieSizePercentage = 0; my $geneOneMinusPieOpacityPercentage = 0.3;  my $geneOneMinusPieColorPercentage = 'white';
+    my $geneTwoMinusPieSizePercentage = 0; my $geneTwoMinusPieOpacityPercentage = 0.3;  my $geneTwoMinusPieColorPercentage = 'white';
     my $whichGeneHighlight = '';
     if ($geneOneId) {
         # slicing by total count
@@ -1156,13 +1162,14 @@ sub annotSummaryJsonCode {
         # slicing by percentage count
       if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
           $whichGeneHighlight = 'geneBoth';
-          $geneOneMinusPieColorPercentage = 'yellow'; $geneTwoMinusPieColorPercentage = 'yellow'; $geneOneMinusPieOpacityPercentage = 1.0; $geneTwoMinusPieOpacityPercentage = 1.0; }
+#           $geneOneMinusPieColorPercentage = 'yellow'; $geneTwoMinusPieColorPercentage = 'yellow'; 
+          $geneOneMinusPieOpacityPercentage = 1.0; $geneTwoMinusPieOpacityPercentage = 1.0; }
         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { 
-          $whichGeneHighlight = 'geneOne';
-          $geneOneMinusPieColorPercentage = 'red'; $geneTwoMinusPieColorPercentage = 'red'; }
+#           $geneOneMinusPieColorPercentage = 'red'; $geneTwoMinusPieColorPercentage = 'red';
+          $whichGeneHighlight = 'geneOne'; }
         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
-          $whichGeneHighlight = 'geneTwo';
-          $geneOneMinusPieColorPercentage = 'blue'; $geneTwoMinusPieColorPercentage = 'blue'; }
+#           $geneOneMinusPieColorPercentage = 'blue'; $geneTwoMinusPieColorPercentage = 'blue';
+          $whichGeneHighlight = 'geneTwo'; }
       if ($rootNodesTotalAnnotationCount{geneOne}) {
         $geneOnePieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * 5); }	# 10% chunks
       if ($rootNodesTotalAnnotationCount{geneTwo}) {
@@ -1518,11 +1525,12 @@ Content-type: text/html\n
     if ('$geneOneId' !== '') {
         \$('#whichgenehighlight').show();
         \$('#pietype').show(); }
-    if ( ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) && ('$geneOneId' === '') ) {
-        \$('#trAllianceSlimWith').show(); 
-        \$('#trAllianceSlimWithout').show(); 
+    if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) {
+         if ('$geneOneId' === '') {
+          \$('#trAllianceSlimWith').show(); 
+          \$('#trAllianceSlimWithout').show(); 
+          \$('#goSlimDiv').show(); }
         \$('#evidencetypego').show(); 
-        \$('#goSlimDiv').show(); 
         \$('#rootschosen').show(); }
       else if ( '$datatype' === 'disease') { 
         \$('#evidencetypedisease').show(); }
