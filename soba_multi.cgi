@@ -360,6 +360,8 @@ EndOfText
                 <div id="forcedGene${fieldCount}Container"></div>
           </div></span><br/><br/>
 EndOfText
+# UNDO for biggo / species selection
+    next;
     
     my $div_display = ''; if ($fieldCount eq 'Two') { $div_display = 'style="display: none"'; }
     print qq(<div id="controls$fieldCount" $div_display>\n);
@@ -1087,7 +1089,10 @@ sub annotSummaryJsonCode {
         next if ($evidenceType eq 'anytype');			# skip 'anytype', only used for relative size to max value
         push @annotCounts, qq($nodes{$node}{'counts'}{$whichGene}{$evidenceType} $evidenceType); }
       $annotCounts .= join"; ", @annotCounts; 
-      $annotCounts .= qq( \($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $rootNodesTotalAnnotationCount{$whichGene}\));
+# to display ratio
+#       $annotCounts .= qq( \($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $rootNodesTotalAnnotationCount{$whichGene}\));
+      my $annotCountPercentage = int($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $rootNodesTotalAnnotationCount{$whichGene} * 100);
+      $annotCounts .= qq( \(${annotCountPercentage}% of gene total\));
       $annotCounts .= "<br/>"; }
 
     my $diameter = $diameterMultiplier * &calcNodeWidth($nodes{$node}{'counts'}{'anygene'}{'anytype'}, $anyRootNodeMaxAnnotationCount{'anygene'});
@@ -1342,8 +1347,10 @@ my $debugText = '';
   my $legendRedNodeText = 'With Direct Annotation';
   my $legendWeightstateWeighted = 'Annotation weighted';
   my $legendWeightstateUnweighted = 'Annotation unweighted';
-  my $legendPietypeTotalcount = 'Pie Slice Total counts';
-  my $legendPietypePercentage = 'Pie Slice Percentage';
+#   my $legendPietypeTotalcount = 'Pie Slice Total counts';
+#   my $legendPietypePercentage = 'Pie Slice Percentage';
+  my $legendPietypeTotalcount = 'Full';
+  my $legendPietypePercentage = 'Two Halves';
   my $legendSkipEvidenceStart = '';
   my $legendSkipEvidenceEnd = '';
   my $analyzePairsText = '';
@@ -2037,8 +2044,8 @@ $analyzePairsText
       <button id="view_edit_button" style="display: none;">go back</button><br/>
     </div>
     <div id="legenddiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
-    <span id="geneOneValue">$geneOneValue</span><br/><br/>
-    <span id="autocompleteValue">$autocompleteValue</span><br/><br/>
+    <span style='color: red'  id="geneOneValue">$geneOneValue</span><br/><br/>
+    <span style='color: blue' id="autocompleteValue">$autocompleteValue</span><br/><br/>
     <span id="descriptionTerms">$descriptionTerms</span><br/><br/>
     <span id="nodeCount" style="display: $show_node_count ">node count<br/></span>
     <span id="edgeCount" style="display: $show_node_count ">edge count<br/></span>
@@ -2089,9 +2096,9 @@ $analyzePairsText
         <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_all"   checked="checked" >All nodes</input><br/>
         <!--<input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneOne"><a href='https://wormbase.org/species/c_elegans/gene/$geneOneId' target='_blank' style='color: red'>$geneOneName</a></input><br/>
         <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneTwo"><a href='https://wormbase.org/species/c_elegans/gene/$focusTermId' target='_blank' style='color: blue'>$focusTermName</a></input><br/>-->
-        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneOne"><span style='color: red'>$geneOneName</span></input><br/>
-        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneTwo"><span style='color: blue'>$focusTermName</span></input><br/>
-        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneBoth">both genes</input><br/><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneOne"><span style='color: red'>$geneOneName specific</span></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneTwo"><span style='color: blue'>$focusTermName specific</span></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneBoth">shared</input><br/><br/>
       </div>
       $legendSkipEvidenceStart
       <div id="evidencetypeanatomy" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
