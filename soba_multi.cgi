@@ -1960,11 +1960,11 @@ console.log( "Updating from " + event.data.name );
     rootsPossible.forEach(function(rootTerm) {
       if (document.getElementById(rootTerm).checked) { rootsChosen.push(document.getElementById(rootTerm).value); } });
     var rootsChosenGroup = rootsChosen.join(',');
-    var jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=$focusTermId&datatype=$datatype';
+    var jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=$focusTermId&focusTermName=$focusTermName&datatype=$datatype';
     if ('$processType' === 'analyze_pairs') {
         jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=$encodedObjectsQvalue&datatype=$datatype'; }
       else if ('$geneOneId' !== '') {
-        jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=$geneOneId&focusTermId=$focusTermId&datatype=$datatype'; }
+        jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=$geneOneId&focusTermId=$focusTermId&geneOneName=$geneOneName&focusTermName=$focusTermName&datatype=$datatype'; }
     if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) { jsonUrl += '&radio_etgo=' + radioEtgo; }
       else if ('$datatype' === 'phenotype') {                    jsonUrl += '&radio_etp='  + radioEtp;  }
       else if ('$datatype' === 'disease') {                      jsonUrl += '&radio_etd='  + radioEtd;  }
