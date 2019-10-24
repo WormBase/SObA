@@ -56,6 +56,7 @@ use Tie::IxHash;                                # allow hashes ordered by item a
 use Net::Domain qw(hostname hostfqdn hostdomain);
 use URI::Encode qw(uri_encode uri_decode);
 use Storable qw(dclone);			# copy hash of hashes
+use POSIX;
 
 
 use Time::HiRes qw( time );
@@ -330,14 +331,17 @@ EndOfText
 
   print qq(<input type="hidden" name="which_page" id="which_page" value="pickTwoGenesPage">\n);
 
-  my $datatype = 'biggo';		# by defalt for front page
+#   my $datatype = 'biggo';		# by defalt for front page
+  my $datatype = 'phenotype';		# by defalt for front page
   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
   my $page_data = get $solr_taxon_url;
   my $perl_scalar = $json->decode( $page_data );
   my %jsonHash = %$perl_scalar;
 
   print qq(Select a datatype to display.<br/>\n);
-  my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+# UNDO for biggo
+#   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+  my @datatypes = qw( anatomy disease go lifestage phenotype );
   foreach my $datatype (@datatypes) {
     my $checked = '';
     if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
@@ -356,6 +360,8 @@ EndOfText
                 <div id="forcedGene${fieldCount}Container"></div>
           </div></span><br/><br/>
 EndOfText
+# UNDO for biggo / species selection
+    next;
     
     my $div_display = ''; if ($fieldCount eq 'Two') { $div_display = 'style="display: none"'; }
     print qq(<div id="controls$fieldCount" $div_display>\n);
@@ -426,14 +432,17 @@ EndOfText
 
   print qq(<input type="hidden" name="which_page" id="which_page" value="pickOneGenePage">\n);
 
-  my $datatype = 'biggo';		# by defalt for front page
+#   my $datatype = 'biggo';		# by defalt for front page
+  my $datatype = 'phenotype';		# by defalt for front page
   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
   my $page_data = get $solr_taxon_url;
   my $perl_scalar = $json->decode( $page_data );
   my %jsonHash = %$perl_scalar;
 
   print qq(Select a datatype to display.<br/>\n);
-  my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+# UNDO for biggo
+#   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+  my @datatypes = qw( anatomy disease go lifestage phenotype );
   foreach my $datatype (@datatypes) {
     my $checked = '';
     if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
@@ -579,7 +588,8 @@ sub calculateNodesAndEdges {
       my $perl_scalar = $json->decode( $page_data );                        # get the solr data
       my %jsonHash    = %$perl_scalar;
 
-      if ($jsonHash{'response'}{'numFound'} == 0) { return ($toReturn, \%nodes, \%nodes); }	# return nothing if there are no annotations found
+#       if ($jsonHash{'response'}{'numFound'} == 0) { return ($toReturn, \%nodes, \%nodes); }	# return nothing if there are no annotations found
+      next if ($jsonHash{'response'}{'numFound'} == 0);		 	# skip if there are no annotations found, can't return because could have 2 genes
 
       foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
         my $nodeIdAnnotated = $$doc{'annotation_class'};
@@ -597,7 +607,7 @@ sub calculateNodesAndEdges {
               if ($evidenceType) {
 # FIX ?  nodeIdInferred -> nodeIdAnnotany ?
                 foreach my $nodeIdInferred (@{ $$doc{'regulates_closure'} }) {
-#     print qq(NODE GOID $nodeIdInferred 1\n);
+#       print qq(NODE whichGene $whichGene GOID $nodeIdInferred 1\n);
                   $annotationNodeidWhichgene{'any'}{$nodeIdInferred}{$whichGene}++;	# track which gene inferred nodes came from
 #                   $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$evidenceType}++;  
                   $nodes{$nodeIdInferred}{'counts'}{'anygene'}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{$evidenceType}++;  
@@ -606,7 +616,7 @@ sub calculateNodesAndEdges {
             my $evidenceType = $idarray[6];
             if ($datatype eq 'lifestage') { if ($evidenceType eq 'IDA') { $evidenceType = 'Gene Expression'; } }
             foreach my $nodeIdInferred (@{ $$doc{'regulates_closure'} }) {
-#     print qq(NODE GOID $nodeIdInferred 2\n);
+#     print qq(NODE whichGene $whichGene GOID $nodeIdInferred 2\n);
               $annotationNodeidWhichgene{'any'}{$nodeIdInferred}{$whichGene}++;		# track which gene inferred nodes came from
 #               $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$evidenceType}++;  
               $nodes{$nodeIdInferred}{'counts'}{'anygene'}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{$evidenceType}++;  
@@ -819,7 +829,8 @@ sub annotSummaryJsonCode {
   my %nodes    = %$nodesHashref;
 # foreach my $node (sort keys %nodes) { print qq(RETURNED NODES $node\n); }
   my %edgesLca = %$edgesLcaHashref;
-  my %annotationNodeidWhichgene = %$annotationNodeidWhichgeneHashref;
+  my %annotationNodeidWhichgene = ();
+  if ($annotationNodeidWhichgeneHashref) { %annotationNodeidWhichgene = %$annotationNodeidWhichgeneHashref; }
   if ($fakeRootFlag) { 
     if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
       my $fakeRoot = 'GO:0000000';
@@ -829,7 +840,10 @@ sub annotSummaryJsonCode {
         if ($nodes{$sub}{'counts'}{'anygene'}{'anytype'}) {		# root must have an annotation to be added
           $edgesLca{$fakeRoot}{$sub}++; }				# any existing edge, parent to child 
   } } }
+
   my @nodes = ();
+
+
   my %rootNodes; 
   my %anyRootNodeMaxAnnotationCount;
   foreach my $root (@rootsChosen) { 
@@ -837,6 +851,28 @@ sub annotSummaryJsonCode {
     foreach my $whichGene (sort keys %{ $nodes{$root}{'counts'} }) {
       if ($nodes{$root}{'counts'}{$whichGene}{'anytype'} > $anyRootNodeMaxAnnotationCount{$whichGene}) { 
         $anyRootNodeMaxAnnotationCount{$whichGene} = $nodes{$root}{'counts'}{$whichGene}{'anytype'}; } } }
+
+  my %rootNodesTotalAnnotationCount;
+  my @whichGenes = qw( geneOne geneTwo );
+  my $solr_url = $base_solr_url . $datatype . '/';
+  foreach my $whichGene (@whichGenes) {
+    my $geneId = $geneOneId;
+    if ($whichGene eq 'geneTwo') { $geneId = $focusTermId; }
+    next unless $geneId;
+    if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {		# go with multi roots has a special query Raymond chose to find total annotations for a gene
+        my $total_annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $geneId . '%22';
+        my $page_data   = get $total_annotation_count_solr_url;                                           # get the URL
+#         print qq( total_annotation_count_solr_url $total_annotation_count_solr_url\n);
+        my $perl_scalar = $json->decode( $page_data );                        # get the solr data
+        my %jsonHash    = %$perl_scalar;
+        if ($jsonHash{'response'}{'numFound'} == 0) { 
+            $rootNodesTotalAnnotationCount{$whichGene} = 1;
+            $errorMessage .= qq($geneId total annotation count not found<br/>); }
+          else {
+            $rootNodesTotalAnnotationCount{$whichGene} = $jsonHash{'response'}{'numFound'}; } }
+      else {								# datatypes with one root just take the maximum annotations any node has
+        $rootNodesTotalAnnotationCount{$whichGene} = $anyRootNodeMaxAnnotationCount{$whichGene}; } }
+
   if ($fakeRootFlag) { 
     if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
       $rootNodes{'GO:0000000'}++; } }
@@ -1044,8 +1080,8 @@ sub annotSummaryJsonCode {
     my $annotCounts = '';
     foreach my $whichGene (sort keys %{ $nodes{$node}{'counts'} }) {
       next if ($whichGene eq 'anygene');				# skip 'anygene', only use geneOne / geneTwo
-      my $geneName = $geneOneName; my $wbgene = $geneOneId; my $linkcolour = 'blue';
-      if ($whichGene eq 'geneTwo') { $geneName = $focusTermName; $wbgene = $focusTermId; $linkcolour = 'red'; }
+      my $geneName = $geneOneName; my $wbgene = $geneOneId; my $linkcolour = 'red';
+      if ($whichGene eq 'geneTwo') { $geneName = $focusTermName; $wbgene = $focusTermId; $linkcolour = 'blue'; }
       $wbgene =~ s/WB://g;
       $annotCounts .= qq(<a href='https://wormbase.org/species/c_elegans/gene/$wbgene' target='_blank' style='color: $linkcolour'>$geneName</a> - Annotation Count: );
       my @annotCounts;
@@ -1053,7 +1089,10 @@ sub annotSummaryJsonCode {
         next if ($evidenceType eq 'anytype');			# skip 'anytype', only used for relative size to max value
         push @annotCounts, qq($nodes{$node}{'counts'}{$whichGene}{$evidenceType} $evidenceType); }
       $annotCounts .= join"; ", @annotCounts; 
-      $annotCounts .= qq( \($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $anyRootNodeMaxAnnotationCount{$whichGene}\));
+# to display ratio
+#       $annotCounts .= qq( \($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $rootNodesTotalAnnotationCount{$whichGene}\));
+      my $annotCountPercentage = int($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $rootNodesTotalAnnotationCount{$whichGene} * 100);
+      $annotCounts .= qq( \(${annotCountPercentage}% of gene total\));
       $annotCounts .= "<br/>"; }
 
     my $diameter = $diameterMultiplier * &calcNodeWidth($nodes{$node}{'counts'}{'anygene'}{'anytype'}, $anyRootNodeMaxAnnotationCount{'anygene'});
@@ -1070,12 +1109,12 @@ sub annotSummaryJsonCode {
     my $borderWidthRoot_weighted = 4 * $borderWidth;
     my $borderWidthRoot_unweighted = 8;				# scaled diameter and fontSize to keep borderWidth the same, but passing values in case we ever want to change them, we won't have to change the cytoscape receiving the json
     my $labelColor = 'black'; if ($node eq 'GO:0000000') { $labelColor = '#fff'; }
+    my $backgroundColor = 'white'; 
 # for testing gene one vs gene two by font colour
 #     if ($geneOneId) {
 #       if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'purple'; }
-#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { $labelColor = 'blue'; }
-#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'red'; } }
-    my $backgroundColor = 'white'; 
+#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { $labelColor = 'red'; }
+#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'blue'; } }
     my $nodeExpandable = 'false'; 
 # label nodes green if they have a child it could expand into, not relevant 2019 02 08
 #     foreach my $child (sort keys %{ $edgesLca{$node} }) {               # each child of node
@@ -1101,48 +1140,101 @@ sub annotSummaryJsonCode {
     }
 
 
-    my $geneOnePieSize = 0;        my $geneOnePieOpacity = 0.5; 
-    my $geneTwoPieSize = 0;        my $geneTwoPieOpacity = 0.5;
-    my $geneOneMinusPieSize = 0;   my $geneOneMinusPieOpacity = 0; 
-    my $geneTwoMinusPieSize = 0;   my $geneTwoMinusPieOpacity = 0;
+    my $geneOnePieSize                = 0; my $geneOnePieOpacity                = 0.5;  my $geneOnePieColor                = 'red';
+    my $geneTwoPieSize                = 0; my $geneTwoPieOpacity                = 0.5;  my $geneTwoPieColor                = 'blue';
+    my $geneOnePieSizeTotalcount      = 0; my $geneOnePieOpacityTotalcount      = 0.5;  my $geneOnePieColorTotalcount      = 'red';
+    my $geneTwoPieSizeTotalcount      = 0; my $geneTwoPieOpacityTotalcount      = 0.5;  my $geneTwoPieColorTotalcount      = 'blue';
+    my $geneOnePieSizePercentage      = 0; my $geneOnePieOpacityPercentage      = 0.5;  my $geneOnePieColorPercentage      = 'red';
+    my $geneTwoPieSizePercentage      = 0; my $geneTwoPieOpacityPercentage      = 0.5;  my $geneTwoPieColorPercentage      = 'blue';
+    my $geneOneMinusPieSize           = 0; my $geneOneMinusPieOpacity           = 0.3;  my $geneOneMinusPieColor           = 'red';
+    my $geneTwoMinusPieSize           = 0; my $geneTwoMinusPieOpacity           = 0.3;  my $geneTwoMinusPieColor           = 'blue';
+    my $geneOneMinusPieSizeTotalcount = 0; my $geneOneMinusPieOpacityTotalcount = 0.3;  my $geneOneMinusPieColorTotalcount = 'red';
+    my $geneTwoMinusPieSizeTotalcount = 0; my $geneTwoMinusPieOpacityTotalcount = 0.3;  my $geneTwoMinusPieColorTotalcount = 'blue';
+    my $geneOneMinusPieSizePercentage = 0; my $geneOneMinusPieOpacityPercentage = 0.3;  my $geneOneMinusPieColorPercentage = 'white';
+    my $geneTwoMinusPieSizePercentage = 0; my $geneTwoMinusPieOpacityPercentage = 0.3;  my $geneTwoMinusPieColorPercentage = 'white';
+    my $whichGeneHighlight = '';
     if ($geneOneId) {
-#       $geneOnePieSize    = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
-#       $geneTwoPieSize    = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
-#       my $opacityMultiplier = 0.3;
-#       my $opacityFloor = 0.40;
-#       $geneOnePieOpacity = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor;
-#       $geneTwoPieOpacity = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor;
+        # slicing by total count
+      $geneOnePieSizeTotalcount   = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
+      $geneTwoPieSizeTotalcount   = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
+      my $opacityMultiplier = 0.3;
+      my $opacityFloor = 0.40;
+      if ($rootNodesTotalAnnotationCount{geneOne}) {
+        $geneOnePieOpacityTotalcount = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor; }
+      if ($rootNodesTotalAnnotationCount{geneTwo}) {
+        $geneTwoPieOpacityTotalcount = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor; }
 
-      $geneOnePieSize    = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneOne} * 50;
-      $geneTwoPieSize    = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $anyRootNodeMaxAnnotationCount{geneTwo} * 50;
-      $geneOneMinusPieSize    = 50 - $geneOnePieSize;
-      $geneTwoMinusPieSize    = 50 - $geneTwoPieSize;
-    }
+        # slicing by percentage count
+      if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
+          $whichGeneHighlight = 'geneBoth';
+#           $geneOneMinusPieColorPercentage = 'yellow'; $geneTwoMinusPieColorPercentage = 'yellow'; 
+          $geneOneMinusPieOpacityPercentage = 1.0; $geneTwoMinusPieOpacityPercentage = 1.0; }
+        elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { 
+#           $geneOneMinusPieColorPercentage = 'red'; $geneTwoMinusPieColorPercentage = 'red';
+          $whichGeneHighlight = 'geneOne'; }
+        elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
+#           $geneOneMinusPieColorPercentage = 'blue'; $geneTwoMinusPieColorPercentage = 'blue';
+          $whichGeneHighlight = 'geneTwo'; }
+      if ($rootNodesTotalAnnotationCount{geneOne}) {
+        $geneOnePieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * 5); }	# 10% chunks
+      if ($rootNodesTotalAnnotationCount{geneTwo}) {
+        $geneTwoPieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * 5); }
+      $geneOneMinusPieSizePercentage = 50 - $geneOnePieSizePercentage;
+      $geneTwoMinusPieSizePercentage = 50 - $geneTwoPieSizePercentage;
+
+        # initialize values to total count
+      $geneOnePieSize         = $geneOnePieSizeTotalcount;
+      $geneTwoPieSize         = $geneTwoPieSizeTotalcount;
+      $geneOnePieOpacity      = $geneOnePieOpacityTotalcount;
+      $geneTwoPieOpacity      = $geneTwoPieOpacityTotalcount;
+      $geneOnePieColor        = $geneOnePieColorTotalcount;
+      $geneTwoPieColor        = $geneTwoPieColorTotalcount;
+      $geneOneMinusPieSize    = $geneOneMinusPieSizeTotalcount;
+      $geneTwoMinusPieSize    = $geneTwoMinusPieSizeTotalcount;
+      $geneOneMinusPieOpacity = $geneOneMinusPieOpacityTotalcount;
+      $geneTwoMinusPieOpacity = $geneTwoMinusPieOpacityTotalcount;
+      $geneOneMinusPieColor   = $geneOneMinusPieColorTotalcount;
+      $geneTwoMinusPieColor   = $geneTwoMinusPieColorTotalcount;
+    } # if ($geneOneId)
 
 
 #     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity);
-    my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneOneMinusPieSize" : $geneOneMinusPieSize, "geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity);
+#     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneOnePieColor" : "$geneOnePieColor", "geneOneMinusPieSize" : $geneOneMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneOneMinusPieColor" : "$geneOneMinusPieColor", "geneTwoPieSize" : $geneTwoPieSize, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneTwoPieColor" : "$geneTwoPieColor", "geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity, "geneTwoMinusPieColor" : "$geneTwoMinusPieColor");
+    my $pieInfo = qq(, );
+    $pieInfo .= qq("whichGeneHighlight" : "$whichGeneHighlight", );
+    $pieInfo .= qq("geneOnePieSize" : $geneOnePieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneOnePieColor" : "$geneOnePieColor", );
+    $pieInfo .= qq("geneTwoPieSize" : $geneTwoPieSize, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneTwoPieColor" : "$geneTwoPieColor", );
+    $pieInfo .= qq("geneOnePieSizeTotalcount" : $geneOnePieSizeTotalcount, "geneOnePieOpacityTotalcount" : $geneOnePieOpacityTotalcount, "geneOnePieColorTotalcount" : "$geneOnePieColorTotalcount", );
+    $pieInfo .= qq("geneTwoPieSizeTotalcount" : $geneTwoPieSizeTotalcount, "geneTwoPieOpacityTotalcount" : $geneTwoPieOpacityTotalcount, "geneTwoPieColorTotalcount" : "$geneTwoPieColorTotalcount", );
+    $pieInfo .= qq("geneOnePieSizePercentage" : $geneOnePieSizePercentage, "geneOnePieOpacityPercentage" : $geneOnePieOpacityPercentage, "geneOnePieColorPercentage" : "$geneOnePieColorPercentage", );
+    $pieInfo .= qq("geneOneMinusPieSize" : $geneOneMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneOneMinusPieColor" : "$geneOneMinusPieColor", );
+    $pieInfo .= qq("geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity, "geneTwoMinusPieColor" : "$geneTwoMinusPieColor", );
+    $pieInfo .= qq("geneTwoPieSizePercentage" : $geneTwoPieSizePercentage, "geneTwoPieOpacityPercentage" : $geneTwoPieOpacityPercentage, "geneTwoPieColorPercentage" : "$geneTwoPieColorPercentage", );
+    $pieInfo .= qq("geneOneMinusPieSizeTotalcount" : $geneOneMinusPieSizeTotalcount, "geneOneMinusPieOpacityTotalcount" : $geneOneMinusPieOpacityTotalcount, "geneOneMinusPieColorTotalcount" : "$geneOneMinusPieColorTotalcount", );
+    $pieInfo .= qq("geneTwoMinusPieSizeTotalcount" : $geneTwoMinusPieSizeTotalcount, "geneTwoMinusPieOpacityTotalcount" : $geneTwoMinusPieOpacityTotalcount, "geneTwoMinusPieColorTotalcount" : "$geneTwoMinusPieColorTotalcount", );
+    $pieInfo .= qq("geneOneMinusPieSizePercentage" : $geneOneMinusPieSizePercentage, "geneOneMinusPieOpacityPercentage" : $geneOneMinusPieOpacityPercentage, "geneOneMinusPieColorPercentage" : "$geneOneMinusPieColorPercentage", );
+    $pieInfo .= qq("geneTwoMinusPieSizePercentage" : $geneTwoMinusPieSizePercentage, "geneTwoMinusPieOpacityPercentage" : $geneTwoMinusPieOpacityPercentage, "geneTwoMinusPieColorPercentage" : "$geneTwoMinusPieColorPercentage");
 
     my $cytId = $node; $cytId =~ s/://;
 #     my $nodeColor  = 'blue';  	# to colour code nodes by direct vs inferred
     my $nodeColor  = 'black';  
     if ($rootNodes{$node}) {
-      next unless (($nodes{$node}{'counts'}{'anygene'}{'anytype'}) || ($objectsQvalue)); 	# only add a root if it has annotations or is soba by ontology terms, which don't have annoatations
-      if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
-      if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
+        next unless (($nodes{$node}{'counts'}{'anygene'}{'anytype'}) || ($objectsQvalue)); 	# only add a root if it has annotations or is soba by ontology terms, which don't have annoatations
+        if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
+        if ( ($goslimIds{$node}) && !($geneOneId) ) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
         unless ($geneOneId) { $nodeColor = 'blue'; }					# to colour code nodes by direct vs inferred
 #         $node =~ s/GO://; 
         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable" $pieInfo } }); }
       elsif ($nodes{$node}{lca}) {
 # print qq(LCA NODE $node\n);
-        if ($goslimIds{$node}) { $backgroundColor = 'blue'; }
+        if ( ($goslimIds{$node}) && !($geneOneId) ) { $backgroundColor = 'blue'; }
         unless ($geneOneId) { $nodeColor = 'blue'; }					# to colour code nodes by direct vs inferred
 #         $node =~ s/GO://; 
           push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });   }
       elsif ($nodes{$node}{annot}) {
 # print qq(ANNOT NODE $node\n);
-        if ($goslimIds{$node}) { $backgroundColor = 'red'; }
+        if ( ($goslimIds{$node}) && !($geneOneId) ) { $backgroundColor = 'red'; }
         unless ($geneOneId) { $nodeColor = 'red'; }					# to colour code nodes by direct vs inferred
 #          $node =~ s/GO://; 
          push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "direct", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });     } 
@@ -1255,6 +1347,10 @@ my $debugText = '';
   my $legendRedNodeText = 'With Direct Annotation';
   my $legendWeightstateWeighted = 'Annotation weighted';
   my $legendWeightstateUnweighted = 'Annotation unweighted';
+#   my $legendPietypeTotalcount = 'Pie Slice Total counts';
+#   my $legendPietypePercentage = 'Pie Slice Percentage';
+  my $legendPietypeTotalcount = 'Absolute count slices';
+  my $legendPietypePercentage = 'Relative count slices';
   my $legendSkipEvidenceStart = '';
   my $legendSkipEvidenceEnd = '';
   my $analyzePairsText = '';
@@ -1317,15 +1413,20 @@ my $debugText = '';
     } # foreach my $goid (sort keys %goslimIds)
   }
 
+  my $withoutDirectLegendNodeColor = 'blue';
+  my $withDirectLegendNodeColor    = 'red';
 # FIX
 #   $focusTermId = 'WB:WBGene00001135';
   my $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
+  my $geneOneName = ''; my $focusTermName = '';
   if ($processType eq 'analyze_pairs') {
 #       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
     elsif ($geneOneId) {
-      my ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
-      my ($geneOneName)   = $geneOneValue      =~ m/^(.*) \(/;
+      $withoutDirectLegendNodeColor = 'black';
+      $withDirectLegendNodeColor    = 'black';
+      ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
+      ($geneOneName)   = $geneOneValue      =~ m/^(.*) \(/;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=' . $geneOneId . '&focusTermId=' . $focusTermId . '&geneOneName=' . $geneOneName . '&focusTermName=' . $focusTermName . '&datatype=' . $datatype; }
   if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) { $jsonUrl .= '&radio_etgo=' . $radio_etgo . '&rootsChosen=' . $roots; }
     elsif ($datatype eq 'phenotype') {                   $jsonUrl .= '&radio_etp='  . $radio_etp;                             }
@@ -1428,11 +1529,15 @@ Content-type: text/html\n
   function initCy( then ){
     var elements = then[0].elements;
     \$('#controldiv').show(); \$('#loadingdiv').hide();	// show controls and hide loading when graph loaded
+    if ('$geneOneId' !== '') {
+        \$('#whichgenehighlight').show();
+        \$('#pietype').show(); }
     if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) {
-        \$('#trAllianceSlimWith').show(); 
-        \$('#trAllianceSlimWithout').show(); 
+         if ('$geneOneId' === '') {
+          \$('#trAllianceSlimWith').show(); 
+          \$('#trAllianceSlimWithout').show(); 
+          \$('#goSlimDiv').show(); }
         \$('#evidencetypego').show(); 
-        \$('#goSlimDiv').show(); 
         \$('#rootschosen').show(); }
       else if ( '$datatype' === 'disease') { 
         \$('#evidencetypedisease').show(); }
@@ -1451,16 +1556,16 @@ Content-type: text/html\n
             'color': 'data(labelColor)',
             'shape': 'data(nodeShape)',
             'pie-size': '90%',
-            'pie-1-background-color': 'red',
+            'pie-1-background-color': 'data(geneOnePieColor)',
             'pie-1-background-size': 'mapData(geneOnePieSize, 0, 100, 0, 100)',
             'pie-1-background-opacity': 'data(geneOnePieOpacity)',
-            'pie-2-background-color': 'white',
+            'pie-2-background-color': 'data(geneOneMinusPieColor)',
             'pie-2-background-size': 'mapData(geneOneMinusPieSize, 0, 100, 0, 100)',
             'pie-2-background-opacity': 'data(geneOneMinusPieOpacity)',
-            'pie-4-background-color': 'blue',
+            'pie-4-background-color': 'data(geneTwoPieColor)',
             'pie-4-background-size': 'mapData(geneTwoPieSize, 0, 100, 0, 100)',
             'pie-4-background-opacity': 'data(geneTwoPieOpacity)',
-            'pie-3-background-color': 'white',
+            'pie-3-background-color': 'data(geneTwoMinusPieColor)',
             'pie-3-background-size': 'mapData(geneTwoMinusPieSize, 0, 100, 0, 100)',
             'pie-3-background-opacity': 'data(geneTwoMinusPieOpacity)',
             'border-color': 'data(nodeColor)',
@@ -1662,6 +1767,125 @@ Content-type: text/html\n
 //     }
 //   }
 
+//             'pie-1-background-color': 'data(geneOnePieColor)',
+//             'pie-1-background-size': 'mapData(geneOnePieSize, 0, 100, 0, 100)',
+//             'pie-1-background-opacity': 'data(geneOnePieOpacity)',
+//             'pie-2-background-color': 'data(geneOneMinusPieColor)',
+//             'pie-2-background-size': 'mapData(geneOneMinusPieSize, 0, 100, 0, 100)',
+//             'pie-2-background-opacity': 'data(geneOneMinusPieOpacity)',
+//             'pie-4-background-color': 'data(geneTwoPieColor)',
+//             'pie-4-background-size': 'mapData(geneTwoPieSize, 0, 100, 0, 100)',
+//             'pie-4-background-opacity': 'data(geneTwoPieOpacity)',
+//             'pie-3-background-color': 'data(geneTwoMinusPieColor)',
+//             'pie-3-background-size': 'mapData(geneTwoMinusPieSize, 0, 100, 0, 100)',
+//             'pie-3-background-opacity': 'data(geneTwoMinusPieOpacity)',
+//             'border-color': 'data(nodeColor)',
+//             'border-style': 'data(borderStyle)',
+//             'border-width': 'data(borderWidth)',
+//             'width': 'data(diameter)',
+//             'height': 'data(diameter)',
+
+  \$('#radio_whichgenehighlight_all').on('click', function(){
+    cyPhenGraph.elements().removeClass('faded');
+  });
+
+  \$('#radio_whichgenehighlight_geneOne').on('click', function(){
+console.log('radio_whichgenehighlight_geneOne');
+    cyPhenGraph.elements().removeClass('faded');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      if (node.data('whichGeneHighlight') !== 'geneOne') { node.addClass('faded'); }
+    }
+  });
+
+  \$('#radio_whichgenehighlight_geneTwo').on('click', function(){
+console.log('radio_whichgenehighlight_geneTwo');
+    cyPhenGraph.elements().removeClass('faded');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      if (node.data('whichGeneHighlight') !== 'geneTwo') { node.addClass('faded'); }
+    }
+  });
+
+  \$('#radio_whichgenehighlight_geneBoth').on('click', function(){
+console.log('radio_whichgenehighlight_geneBoth');
+    cyPhenGraph.elements().removeClass('faded');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      if (node.data('whichGeneHighlight') !== 'geneBoth') { node.addClass('faded'); }
+    }
+  });
+
+  \$('#radio_pietype_percentage').on('click', function(){
+console.log('radio_pietype_percentage');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      var nodeId   = node.data('id');
+      var geneOnePieSizePercentage   = node.data('geneOnePieSizePercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieSize', geneOnePieSizePercentage);
+      var geneTwoPieSizePercentage   = node.data('geneTwoPieSizePercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieSize', geneTwoPieSizePercentage);
+      var geneOneMinusPieSizePercentage = node.data('geneOneMinusPieSizePercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieSize', geneOneMinusPieSizePercentage);
+      var geneTwoMinusPieSizePercentage = node.data('geneTwoMinusPieSizePercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieSize', geneTwoMinusPieSizePercentage);
+      var geneOnePieColorPercentage   = node.data('geneOnePieColorPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieColor', geneOnePieColorPercentage);
+      var geneTwoPieColorPercentage   = node.data('geneTwoPieColorPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieColor', geneTwoPieColorPercentage);
+      var geneOneMinusPieColorPercentage = node.data('geneOneMinusPieColorPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieColor', geneOneMinusPieColorPercentage);
+      var geneTwoMinusPieColorPercentage = node.data('geneTwoMinusPieColorPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieColor', geneTwoMinusPieColorPercentage);
+      var geneOnePieOpacityPercentage   = node.data('geneOnePieOpacityPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieOpacity', geneOnePieOpacityPercentage);
+      var geneTwoPieOpacityPercentage   = node.data('geneTwoPieOpacityPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieOpacity', geneTwoPieOpacityPercentage);
+      var geneOneMinusPieOpacityPercentage = node.data('geneOneMinusPieOpacityPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieOpacity', geneOneMinusPieOpacityPercentage);
+      var geneTwoMinusPieOpacityPercentage = node.data('geneTwoMinusPieOpacityPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieOpacity', geneTwoMinusPieOpacityPercentage);
+    }
+    cyPhenGraph.layout();
+  });
+
+  \$('#radio_pietype_totalcount').on('click', function(){
+console.log('radio_pietype_totalcount');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      var nodeId   = node.data('id');
+      var geneOnePieSizeTotalcount   = node.data('geneOnePieSizeTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieSize', geneOnePieSizeTotalcount);
+      var geneTwoPieSizeTotalcount   = node.data('geneTwoPieSizeTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieSize', geneTwoPieSizeTotalcount);
+      var geneOneMinusPieSizeTotalcount = node.data('geneOneMinusPieSizeTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieSize', geneOneMinusPieSizeTotalcount);
+      var geneTwoMinusPieSizeTotalcount = node.data('geneTwoMinusPieSizeTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieSize', geneTwoMinusPieSizeTotalcount);
+      var geneOnePieColorTotalcount   = node.data('geneOnePieColorTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieColor', geneOnePieColorTotalcount);
+      var geneTwoPieColorTotalcount   = node.data('geneTwoPieColorTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieColor', geneTwoPieColorTotalcount);
+      var geneOneMinusPieColorTotalcount = node.data('geneOneMinusPieColorTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieColor', geneOneMinusPieColorTotalcount);
+      var geneTwoMinusPieColorTotalcount = node.data('geneTwoMinusPieColorTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieColor', geneTwoMinusPieColorTotalcount);
+      var geneOnePieOpacityTotalcount   = node.data('geneOnePieOpacityTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieOpacity', geneOnePieOpacityTotalcount);
+      var geneTwoPieOpacityTotalcount   = node.data('geneTwoPieOpacityTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieOpacity', geneTwoPieOpacityTotalcount);
+      var geneOneMinusPieOpacityTotalcount = node.data('geneOneMinusPieOpacityTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieOpacity', geneOneMinusPieOpacityTotalcount);
+      var geneTwoMinusPieOpacityTotalcount = node.data('geneTwoMinusPieOpacityTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieOpacity', geneTwoMinusPieOpacityTotalcount);
+    }
+    cyPhenGraph.layout();
+  });
 
   \$('#radio_weighted').on('click', function(){
 console.log('radio_weighted');
@@ -1736,11 +1960,11 @@ console.log( "Updating from " + event.data.name );
     rootsPossible.forEach(function(rootTerm) {
       if (document.getElementById(rootTerm).checked) { rootsChosen.push(document.getElementById(rootTerm).value); } });
     var rootsChosenGroup = rootsChosen.join(',');
-    var jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=$focusTermId&datatype=$datatype';
+    var jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=$focusTermId&focusTermName=$focusTermName&datatype=$datatype';
     if ('$processType' === 'analyze_pairs') {
         jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=$encodedObjectsQvalue&datatype=$datatype'; }
       else if ('$geneOneId' !== '') {
-        jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=$geneOneId&focusTermId=$focusTermId&datatype=$datatype'; }
+        jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=$geneOneId&focusTermId=$focusTermId&geneOneName=$geneOneName&focusTermName=$focusTermName&datatype=$datatype'; }
     if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) { jsonUrl += '&radio_etgo=' + radioEtgo; }
       else if ('$datatype' === 'phenotype') {                    jsonUrl += '&radio_etp='  + radioEtp;  }
       else if ('$datatype' === 'disease') {                      jsonUrl += '&radio_etd='  + radioEtd;  }
@@ -1791,6 +2015,9 @@ console.log('jsonUrl ' + jsonUrl);
       maxDepthElement.selectedIndex = maxOption - 1;
       if (event.data.name === 'maxDepth') { maxDepthElement.value = userSelectedValue; }
 //       if (userSelectedValue <= maxDepthElement.value) { maxDepthElement.value = userSelectedValue; }
+//       document.getElementById("radio_whichgenehighlight_all").checked = true;
+      document.getElementById("radio_pietype_totalcount").checked = true;	// when json loads new values, the graph changes to default options for pietype and weighted, so change radio as well
+      document.getElementById("radio_weighted").checked = true;
     }
   } // function updateElements()
 
@@ -1820,7 +2047,8 @@ $analyzePairsText
       <button id="view_edit_button" style="display: none;">go back</button><br/>
     </div>
     <div id="legenddiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
-    <span id="autocompleteValue">$autocompleteValue</span><br/><br/>
+    <span style='color: red'  id="geneOneValue">$geneOneValue</span><br/><br/>
+    <span style='color: blue' id="autocompleteValue">$autocompleteValue</span><br/><br/>
     <span id="descriptionTerms">$descriptionTerms</span><br/><br/>
     <span id="nodeCount" style="display: $show_node_count ">node count<br/></span>
     <span id="edgeCount" style="display: $show_node_count ">edge count<br/></span>
@@ -1831,19 +2059,19 @@ $analyzePairsText
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
-    <polygon fill="none" stroke="blue" stroke-dasharray="5,2" points="36,-36 0,-36 0,-0 36,-0 36,-36"/></g></g></svg></td><td valign="center">Root</td></tr>
+    <polygon fill="none" stroke="$withoutDirectLegendNodeColor" stroke-dasharray="5,2" points="36,-36 0,-36 0,-0 36,-0 36,-36"/></g></g></svg></td><td valign="center">Root</td></tr>
 
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
-    <ellipse fill="none" stroke="blue" stroke-dasharray="5,2" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendBlueNodeText</td></tr>
+    <ellipse fill="none" stroke="$withoutDirectLegendNodeColor" stroke-dasharray="5,2" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendBlueNodeText</td></tr>
 
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
-    <ellipse fill="none" stroke="red" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendRedNodeText</td></tr>
+    <ellipse fill="none" stroke="$withDirectLegendNodeColor" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendRedNodeText</td></tr>
 
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0 0 292.64526 63.826207">
     <defs><marker id="marker4922" style="overflow:visible"> <path style="fill:#949494;fill-opacity:1;fill-rule:evenodd;stroke:#5f5f5f;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1" d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z" transform="matrix(-1.1,0,0,-1.1,-1.1,0)" /> </marker> </defs>
@@ -1860,8 +2088,21 @@ $analyzePairsText
     <form method="get" action="soba_biggo.cgi">
       <div id="weightstate" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
         <input type="radio" name="radio_type" id="radio_weighted"   checked="checked" >$legendWeightstateWeighted</input><br/>
-        <input type="radio" name="radio_type" id="radio_unweighted">$legendWeightstateUnweighted</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_type" id="radio_unweighted">$legendWeightstateUnweighted</input><br/><br/>
+      </div>
+      <div id="pietype" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display:none;">
+        <input type="radio" name="radio_pietype" id="radio_pietype_totalcount"   checked="checked" >$legendPietypeTotalcount</input><br/>
+        <input type="radio" name="radio_pietype" id="radio_pietype_percentage">$legendPietypePercentage</input><br/><br/>
+      </div>
+      <div id="whichgenehighlight" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display:none;">
+        <!--Highlight gene nodes :<br/>-->
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_all"   checked="checked" >All nodes</input><br/>
+        <!--<input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneOne"><a href='https://wormbase.org/species/c_elegans/gene/$geneOneId' target='_blank' style='color: red'>$geneOneName</a></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneTwo"><a href='https://wormbase.org/species/c_elegans/gene/$focusTermId' target='_blank' style='color: blue'>$focusTermName</a></input><br/>-->
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneOne"><span style='color: red'>$geneOneName specific</span></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneTwo"><span style='color: blue'>$focusTermName specific</span></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneBoth">shared</input><br/><br/>
+      </div>
       $legendSkipEvidenceStart
       <div id="evidencetypeanatomy" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_eta"  id="radio_eta_all"             value="radio_eta_all"             $checked_radio_eta_all >all evidence types</input><br/>
