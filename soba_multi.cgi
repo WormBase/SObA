@@ -1422,12 +1422,13 @@ my $debugText = '';
   my $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
   my $geneOneName = ''; my $focusTermName = '';
   my $legendtitlediv = '';
+  my ($infogif) = &getInfoGif();
   if ($processType eq 'analyze_pairs') {
-      $legendtitlediv = qq(<h3>SObA Terms - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#List_of_terms" target="_blank">?</a></h3>\n);
+      $legendtitlediv = qq(<h3>SObA Terms - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#List_of_terms" target="_blank">$infogif</a></h3>\n);
 #       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
     elsif ($geneOneId) {
-      $legendtitlediv = qq(<h3>SObA Gene Pair - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">?</a></h3>\n);
+      $legendtitlediv = qq(<h3>SObA Gene Pair - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">$infogif</a></h3>\n);
       $withoutDirectLegendNodeColor = 'black';
       $withDirectLegendNodeColor    = 'black';
       ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
@@ -2268,3 +2269,115 @@ sub untaint {
   return $untainted;
 } # sub untaint
 
+
+sub getInfoGif {
+  my $infogif = <<"EndOfText";
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.1"
+   width="14"
+   height="14.485189"
+   id="svg2"
+   inkscape:version="0.48.3.1 r9886"
+   sodipodi:docname="info.svg">
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="640"
+     inkscape:window-height="480"
+     id="namedview15"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:zoom="4.3491799"
+     inkscape:cx="7.0000054"
+     inkscape:cy="7.2369895"
+     inkscape:window-x="1044"
+     inkscape:window-y="285"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg2" />
+  <defs
+     id="defs4">
+    <linearGradient
+       id="linearGradient3759">
+      <stop
+         id="stop3761"
+         style="stop-color:#ffffff;stop-opacity:1"
+         offset="0" />
+    </linearGradient>
+    <linearGradient
+       x1="274.82114"
+       y1="438.6864"
+       x2="278.05551"
+       y2="438.6864"
+       id="linearGradient3771"
+       xlink:href="#linearGradient3759"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(3.8755518,0,0,3.8755519,-1003.9342,516.823)" />
+  </defs>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     transform="translate(-271.74999,-421.19103)"
+     id="layer1">
+    <text
+       x="268.57144"
+       y="423.79074"
+       id="text3773"
+       xml:space="preserve"
+       style="font-size:18px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       sodipodi:linespacing="125%"><tspan
+         x="268.57144"
+         y="423.79074"
+         id="tspan3775" /></text>
+    <g
+       transform="matrix(0.26666667,0,0,0.26666667,204.41666,314.18466)"
+       id="g2990">
+      <path
+         d="m 296.78571,452.18362 a 15.535714,16.25 0 1 1 -31.07142,0 15.535714,16.25 0 1 1 31.07142,0 z"
+         transform="matrix(1.4560743,0,0,1.4470161,-130.7709,-225.88336)"
+         id="path2989"
+         style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:5;stroke-miterlimit:5;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+         inkscape:connector-curvature="0" />
+      <text
+         x="272.42188"
+         y="441.70511"
+         id="text3777"
+         xml:space="preserve"
+         style="font-size:18px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         sodipodi:linespacing="125%"><tspan
+           x="272.42188"
+           y="441.70511"
+           id="tspan3779"
+           style="font-size:40px;font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-opacity:1;font-family:Times New Roman;-inkscape-font-specification:'Times New Roman, Bold Italic'">i</tspan></text>
+    </g>
+  </g>
+</svg>
+EndOfText
+  return $infogif;
+}
