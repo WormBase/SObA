@@ -297,6 +297,7 @@ sub pickOntologyTermsPage {
 #   my $exampleData = qq(WBbt:0006817     0.00026\nWBbt:0006814   0.00028\nWBbt:0003927   0.00031\nWBbt:0003737   0.00034\nWBbt:0003721   0.00034\nWBbt:0003740   0.00034\nWBbt:0003724   0.00043\nWBbt:0006762   0.00067\nWBbt:0006764   0.0007\nWBbt:0006763    0.00072\n);
   my $exampleData = qq(WBPhenotype:0000012	0.0001\nWBPhenotype:0002056	0.00042\nWBPhenotype:0000462	0.005\nWBPhenotype:0001621	0.049\nWBPhenotype:0000200	0.07\nWBPhenotype:0000033	0.093\n);
   print qq(<form method="post" action="soba_multi.cgi">);
+  print qq(<h3>SObA terms - Enter a list of ontology terms (of the same type) and their associated statistical (correct-P or Q) values for a SObA graph</h3>\n);
   print qq(Enter datatype objects paired with q-values on separate lines:<br/>\n);
   print qq(<textarea rows="8" cols="80" name="objectsQvalue" id="objectsQvalue">$exampleData</textarea>);
   print qq(<input type="hidden" name="filterForLcaFlag" id="filterForLcaFlag" value="1">);
@@ -338,7 +339,8 @@ EndOfText
   my $perl_scalar = $json->decode( $page_data );
   my %jsonHash = %$perl_scalar;
 
-  print qq(Select a datatype to display.<br/>\n);
+  print qq(<h3>SObA Gene Pair - combines and compares ontology annotations of a pair of genes</h3>\n);
+  print qq(Select an ontology to display.<br/>\n);
 # UNDO for biggo
 #   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
   my @datatypes = qw( anatomy disease go lifestage phenotype );
@@ -1419,10 +1421,13 @@ my $debugText = '';
 #   $focusTermId = 'WB:WBGene00001135';
   my $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
   my $geneOneName = ''; my $focusTermName = '';
+  my $legendtitlediv = '';
   if ($processType eq 'analyze_pairs') {
+      $legendtitlediv = qq(<h3>SObA Terms - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#List_of_terms" target="_blank">?</a></h3>\n);
 #       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
     elsif ($geneOneId) {
+      $legendtitlediv = qq(<h3>SObA Gene Pair - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">?</a></h3>\n);
       $withoutDirectLegendNodeColor = 'black';
       $withDirectLegendNodeColor    = 'black';
       ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
@@ -2042,6 +2047,7 @@ $analyzePairsText
     </div>
   <div id="loadingdiv" style="z-index: 9999; border: 1px solid #aaa; position: relative; float: left; width: 200px; display: '';">Loading <img src="loading.gif" /></div>
   <div id="controldiv" style="z-index: 9999; border: 1px solid #aaa; position: relative; float: left; width: 200px; display: none;">
+    <div id="legendtitlediv">$legendtitlediv</div>
     <div id="exportdiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
       <button id="view_png_button">export png</button>
       <button id="view_edit_button" style="display: none;">go back</button><br/>
@@ -2107,28 +2113,28 @@ $analyzePairsText
       <div id="evidencetypeanatomy" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_eta"  id="radio_eta_all"             value="radio_eta_all"             $checked_radio_eta_all >all evidence types</input><br/>
         <input type="radio" name="radio_eta"  id="radio_eta_onlyexprcluster" value="radio_eta_onlyexprcluster" $checked_radio_eta_onlyexprcluster >only expression cluster</input><br/>
-        <input type="radio" name="radio_eta"  id="radio_eta_onlyexprpattern" value="radio_eta_onlyexprpattern" $checked_radio_eta_onlyexprpattern >only expression pattern</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_eta"  id="radio_eta_onlyexprpattern" value="radio_eta_onlyexprpattern" $checked_radio_eta_onlyexprpattern >only expression pattern</input><br/><br/>
+      </div>
       <div id="evidencetypephenotype" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etp"  id="radio_etp_all"           value="radio_etp_all"           $checked_radio_etp_all >all evidence types</input><br/>
         <input type="radio" name="radio_etp"  id="radio_etp_onlyrnai"      value="radio_etp_onlyrnai"      $checked_radio_etp_onlyrnai >only rnai</input><br/>
-        <input type="radio" name="radio_etp"  id="radio_etp_onlyvariation" value="radio_etp_onlyvariation" $checked_radio_etp_onlyvariation >only variation</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_etp"  id="radio_etp_onlyvariation" value="radio_etp_onlyvariation" $checked_radio_etp_onlyvariation >only variation</input><br/><br/>
+      </div>
       <div id="evidencetypedisease" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etd" id="radio_etd_all"        value="radio_etd_all"        $checked_radio_etd_all ><a href="http://geneontology.org/docs/guide-go-evidence-codes/" target="_blank">all evidence types</a></input><br/>
-        <input type="radio" name="radio_etd" id="radio_etd_excludeiea" value="radio_etd_excludeiea" $checked_radio_etd_excludeiea >exclude IEA</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_etd" id="radio_etd_excludeiea" value="radio_etd_excludeiea" $checked_radio_etd_excludeiea >exclude IEA</input><br/><br/>
+      </div>
       <div id="evidencetypego" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etgo" id="radio_etgo_withiea"    value="radio_etgo_withiea"    $checked_radio_etgo_withiea ><a href="http://geneontology.org/docs/guide-go-evidence-codes/" target="_blank">all evidence types</a></input><br/>
         <input type="radio" name="radio_etgo" id="radio_etgo_excludeiea" value="radio_etgo_excludeiea" $checked_radio_etgo_excludeiea >exclude IEA</input><br/>
-        <input type="radio" name="radio_etgo" id="radio_etgo_onlyiea"    value="radio_etgo_onlyiea"    $checked_radio_etgo_onlyiea >experimental evidence only</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_etgo" id="radio_etgo_onlyiea"    value="radio_etgo_onlyiea"    $checked_radio_etgo_onlyiea >experimental evidence only</input><br/><br/>
+      </div>
       $legendSkipEvidenceEnd
       <div id="rootschosen" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="checkbox" name="root_bp" id="root_bp" value="GO:0008150" $checked_root_bp >Biological Process</input><br/>
         <input type="checkbox" name="root_cc" id="root_cc" value="GO:0005575" $checked_root_cc >Cellular Component</input><br/>
-        <input type="checkbox" name="root_mf" id="root_mf" value="GO:0003674" $checked_root_mf >Molecular Function</input><br/>
-      </div><br/>
+        <input type="checkbox" name="root_mf" id="root_mf" value="GO:0003674" $checked_root_mf >Molecular Function</input><br/><br/>
+      </div>
       <input type="hidden" name="focusTermId" value="$focusTermId">	<!-- not sure what this is for -->
       <div id="controlMenu" style="display: $displayControlMenu;">
         <!--Max Nodes<input type="input" size="3" id="maxNodes" name="maxNodes" value="0"><br/>-->
