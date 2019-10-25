@@ -92,7 +92,7 @@ sub process {
     elsif ($action eq 'annotSummaryJson')           { &annotSummaryJson();      }	# temporarily keep this for the live www.wormbase going through the fake phenotype_graph_json widget
     elsif ($action eq 'annotSummaryJsonp')          { &annotSummaryJsonp();     }	# new jsonp widget to get directly from .wormbase without fake widget
     elsif ($action eq 'frontPage')          { &frontPage();     }	# autocomplete on gene names
-    elsif ($action eq 'Analyze Pairs')              { &annotSummaryCytoscape('analyze_pairs');     }    # autocomplete on gene names
+    elsif ($action eq 'Analyze Terms')              { &annotSummaryCytoscape('analyze_pairs');     }    # autocomplete on gene names
     elsif ($action eq 'autocompleteXHR') {            &autocompleteXHR(); }
     elsif ($action eq 'One Gene to SObA Graph') {     &pickOneGenePage(); }
     elsif ($action eq 'Gene Pair to SObA Graph') {    &pickTwoGenesPage(); }
@@ -303,7 +303,7 @@ sub pickOntologyTermsPage {
   print qq(<input type="hidden" name="filterForLcaFlag" id="filterForLcaFlag" value="1">);
   print qq(<input type="hidden" name="filterLongestFlag" id="filterLongestFlag" value="1">);
   print qq(<input type="hidden" name="showControlsFlag" id="showControlsFlag" value="0">);
-  print qq(<input type="submit" name="action" id="analyzePairsButton" value="Analyze Pairs"><br/><br/><br/>);
+  print qq(<input type="submit" name="action" id="analyzePairsButton" value="Analyze Terms"><br/><br/><br/>);
   print qq(</form>);
   print qq(</body></html>);
 } # sub pickOntologyTermsPage
