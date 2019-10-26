@@ -306,7 +306,7 @@ sub pickOntologyTermsPage {
   print qq(<form method="post" action="soba_multi.cgi">);
   print qq(<h3>SObA terms - Enter a list of ontology terms (of the same type) and their associated statistical (correct-P or Q) values for a SObA graph</h3>\n);
   print qq(Enter datatype objects paired with q-values on separate lines:<br/>\n);
-  print qq(<textarea rows="8" cols="80" name="objectsQvalue" id="objectsQvalue">$exampleData</textarea>);
+  print qq(<textarea rows="8" cols="80" placeholder="$exampleData" name="objectsQvalue" id="objectsQvalue"></textarea>);
   print qq(<input type="hidden" name="filterForLcaFlag" id="filterForLcaFlag" value="1">);
   print qq(<input type="hidden" name="filterLongestFlag" id="filterLongestFlag" value="1">);
   print qq(<input type="hidden" name="showControlsFlag" id="showControlsFlag" value="0">);
