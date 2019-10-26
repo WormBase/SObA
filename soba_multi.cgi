@@ -66,6 +66,9 @@ $prevTime  =~ s/(\....).*$/$1/;
 
 my $hostname = hostname();
 
+my ($cshlHeader, $cshlFooter) = &cshlNew();
+
+
 # my $top_datatype = 'phenotype';
 my $json = JSON->new->allow_nonref;
 my $query = new CGI;
@@ -263,13 +266,15 @@ sub solrSearch {
 } # sub solrSearch
 
 sub frontPage {
-  print "Content-type: text/html\n\n";
+#   print "Content-type: text/html\n\n";
+#   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+#   $header .= "<title>$title</title>\n";
+#   $header .= "</head>";
+#   $header .= '<body class="yui-skin-sam">';
+#   print qq($header);
   my $title = 'SObA options page';
-  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
-  $header .= "<title>$title</title>\n";
-  $header .= "</head>";
-  $header .= '<body class="yui-skin-sam">';
-  print qq($header);
+  &printHtmlHeader($title);
+  print qq(<body class="yui-skin-sam">);
   print qq(<form method="get" action="soba_multi.cgi">);
   print << "EndOfText";
   One Gene to SObA Graph:<br/>
@@ -289,11 +294,13 @@ EndOfText
 } # sub frontPage
 
 sub pickOntologyTermsPage {
-  print "Content-type: text/html\n\n";
+#   print "Content-type: text/html\n\n";
   my $title = 'SObA pick a gene';
-  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
-  $header .= "<title>$title</title>\n";
-  print qq($header);
+#   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+#   $header .= "<title>$title</title>\n";
+#   print qq($header);
+  &printHtmlHeader($title);
+  print qq(<body class="yui-skin-sam">);
 #   my $exampleData = qq(WBbt:0006817     0.00026\nWBbt:0006814   0.00028\nWBbt:0003927   0.00031\nWBbt:0003737   0.00034\nWBbt:0003721   0.00034\nWBbt:0003740   0.00034\nWBbt:0003724   0.00043\nWBbt:0006762   0.00067\nWBbt:0006764   0.0007\nWBbt:0006763    0.00072\n);
   my $exampleData = qq(WBPhenotype:0000012	0.0001\nWBPhenotype:0002056	0.00042\nWBPhenotype:0000462	0.005\nWBPhenotype:0001621	0.049\nWBPhenotype:0000200	0.07\nWBPhenotype:0000033	0.093\n);
   print qq(<form method="post" action="soba_multi.cgi">);
@@ -309,8 +316,9 @@ sub pickOntologyTermsPage {
 } # sub pickOntologyTermsPage
 
 sub pickTwoGenesPage {
-  print "Content-type: text/html\n\n";
+#   print "Content-type: text/html\n\n";
   my $title = 'SObA pick two genes';
+  &printHtmlHeader($title);
   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
   $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
@@ -325,7 +333,7 @@ sub pickTwoGenesPage {
     <script type="text/javascript" src="../javascript/soba_multi.js"></script>
 EndOfText
 
-  $header .= "<title>$title</title>\n";
+#   $header .= "<title>$title</title>\n";
   $header .= "</head>";
   $header .= '<body class="yui-skin-sam">';
   print qq($header);
@@ -398,8 +406,9 @@ EndOfText
 } # sub pickTwoGenesPage
 
 sub pickOneGenePage {
-  print "Content-type: text/html\n\n";
+#   print "Content-type: text/html\n\n";
   my $title = 'SObA pick a gene';
+  &printHtmlHeader($title);
   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
   $header .= "<title>$title</title>\n";
 
@@ -1462,16 +1471,19 @@ my $debugText = '';
   if ($filterLongestFlag) { $checked_filterLongest = 'checked="checked"'; }
   my $show_node_count = 'none';
   if ($nodeCountFlag)     { $show_node_count = ''; }
+
+  my $title = qq(<title>$roots $focusTermId Cytoscape view</title>);
+  &printHtmlHeader($title);
+# Content-type: text/html\n
+# <!DOCTYPE html>
+# <html>
+# <head>
   print << "EndOfText";
-Content-type: text/html\n
-<!DOCTYPE html>
-<html>
-<head>
 <link href="/~azurebrd/work/cytoscape/style.css" rel="stylesheet" />
 <link href="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.css" rel="stylesheet" type="text/css" />
 <meta charset=utf-8 />
 <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
-<title>$roots $focusTermId Cytoscape view</title>
+<!--<title>$roots $focusTermId Cytoscape view</title>--><!-- put back if removing wormbase style header -->
 
 
 <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
@@ -2225,7 +2237,17 @@ sub recurseLongestPath {
 
 sub printHtmlFooter { print qq(</body></html>\n); }
 
+# sub printHtmlHeader { 
+#   my $javascript = << "EndOfText";
+# <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+# </script>
+# EndOfText
+#   print qq(Content-type: text/html\n\n$header $javascript<body>\n); 
+# }
+
 sub printHtmlHeader { 
+  my ($title) = @_;
+  if ($title) { $cshlHeader =~ s/<title>(.*?)<\/title>/<title>$title<\/title>/; }
   my $javascript = << "EndOfText";
 <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
 <script type="text/javascript">
@@ -2239,7 +2261,9 @@ function togglePlusMinus(element) {
 }
 </script>
 EndOfText
-  print qq(Content-type: text/html\n\n<html><head><title>Amigo testing</title>$javascript</head><body>\n); }
+#   print qq(Content-type: text/html\n\n<html><head><title>Amigo testing</title>$javascript</head><body>\n); 
+  print qq(Content-type: text/html\n\n$cshlHeader $javascript</head>\n); 
+}
 
 sub getHtmlVar {                
   no strict 'refs';             
@@ -2381,3 +2405,18 @@ sub getInfoGif {
 EndOfText
   return $infogif;
 }
+
+
+sub cshlNew {
+  my $title = shift;
+  unless ($title) { $title = ''; }      # init title in case blank
+  my $page = get "http://tazendra.caltech.edu/~azurebrd/sanger/wormbaseheader/WB_header_footer.html";
+#  $page =~ s/href="\//href="http:\/\/www.wormbase.org\//g;
+#  $page =~ s/src="/src="http:\/\/www.wormbase.org/g;
+  my ($header, $footer) = $page =~ m/^(.*?)\s+DIVIDER\s+(.*?)$/s;  # 2006 11 20    # get this from tazendra's script result.
+#   $header =~ s/WormBase - Home Page/$title/g;                 # 2015 05 07    # wormbase 2.0
+#   $header =~ s/WS2../WS256/g; # Dictionary freeze for P/GEA paper review process
+  $header =~ s/<title>.*?<\/title>/<title>$title<\/title>/g;
+  return ($header, $footer);
+} # sub cshlNew
+
