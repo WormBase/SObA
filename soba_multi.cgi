@@ -1640,7 +1640,7 @@ my $debugText = '';
           document.getElementById('maxDepth').options[i-1] = new Option(label, i, true, false) }
         document.getElementById('maxDepth').selectedIndex = maxOption - 1;
 
-        cyPhenGraph.on('mouseover', 'edge', function(e){
+        cyPhenGraph.on('click', 'edge', function(e){
           var edge        = e.cyTarget; 
           var nodeId      = edge.data('target');
           var nodeObj     = cyPhenGraph.getElementById( nodeId );
