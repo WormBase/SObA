@@ -2248,6 +2248,7 @@ sub printHtmlFooter { print qq(</body></html>\n); }
 sub printHtmlHeader { 
   my ($title) = @_;
   if ($title) { $cshlHeader =~ s/<title>(.*?)<\/title>/<title>$title<\/title>/; }
+  $cshlHeader =~ s|<script src="https://www.wormbase.org/static/js/wormbase.min.js" type="text/javascript"></script>||;		# remove javascript to prevent popup text when hovering over nodes
   my $javascript = << "EndOfText";
 <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
 <script type="text/javascript">
