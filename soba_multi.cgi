@@ -66,6 +66,9 @@ $prevTime  =~ s/(\....).*$/$1/;
 
 my $hostname = hostname();
 
+my ($cshlHeader, $cshlFooter) = &cshlNew();
+
+
 # my $top_datatype = 'phenotype';
 my $json = JSON->new->allow_nonref;
 my $query = new CGI;
@@ -92,7 +95,7 @@ sub process {
     elsif ($action eq 'annotSummaryJson')           { &annotSummaryJson();      }	# temporarily keep this for the live www.wormbase going through the fake phenotype_graph_json widget
     elsif ($action eq 'annotSummaryJsonp')          { &annotSummaryJsonp();     }	# new jsonp widget to get directly from .wormbase without fake widget
     elsif ($action eq 'frontPage')          { &frontPage();     }	# autocomplete on gene names
-    elsif ($action eq 'Analyze Pairs')              { &annotSummaryCytoscape('analyze_pairs');     }    # autocomplete on gene names
+    elsif ($action eq 'Analyze Terms')              { &annotSummaryCytoscape('analyze_pairs');     }    # autocomplete on gene names
     elsif ($action eq 'autocompleteXHR') {            &autocompleteXHR(); }
     elsif ($action eq 'One Gene to SObA Graph') {     &pickOneGenePage(); }
     elsif ($action eq 'Gene Pair to SObA Graph') {    &pickTwoGenesPage(); }
@@ -263,13 +266,15 @@ sub solrSearch {
 } # sub solrSearch
 
 sub frontPage {
-  print "Content-type: text/html\n\n";
+#   print "Content-type: text/html\n\n";
+#   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+#   $header .= "<title>$title</title>\n";
+#   $header .= "</head>";
+#   $header .= '<body class="yui-skin-sam">';
+#   print qq($header);
   my $title = 'SObA options page';
-  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
-  $header .= "<title>$title</title>\n";
-  $header .= "</head>";
-  $header .= '<body class="yui-skin-sam">';
-  print qq($header);
+  &printHtmlHeader($title);
+  print qq(<body class="yui-skin-sam">);
   print qq(<form method="get" action="soba_multi.cgi">);
   print << "EndOfText";
   One Gene to SObA Graph:<br/>
@@ -289,27 +294,31 @@ EndOfText
 } # sub frontPage
 
 sub pickOntologyTermsPage {
-  print "Content-type: text/html\n\n";
+#   print "Content-type: text/html\n\n";
   my $title = 'SObA pick a gene';
-  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
-  $header .= "<title>$title</title>\n";
-  print qq($header);
+#   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+#   $header .= "<title>$title</title>\n";
+#   print qq($header);
+  &printHtmlHeader($title);
+  print qq(<body class="yui-skin-sam">);
 #   my $exampleData = qq(WBbt:0006817     0.00026\nWBbt:0006814   0.00028\nWBbt:0003927   0.00031\nWBbt:0003737   0.00034\nWBbt:0003721   0.00034\nWBbt:0003740   0.00034\nWBbt:0003724   0.00043\nWBbt:0006762   0.00067\nWBbt:0006764   0.0007\nWBbt:0006763    0.00072\n);
   my $exampleData = qq(WBPhenotype:0000012	0.0001\nWBPhenotype:0002056	0.00042\nWBPhenotype:0000462	0.005\nWBPhenotype:0001621	0.049\nWBPhenotype:0000200	0.07\nWBPhenotype:0000033	0.093\n);
   print qq(<form method="post" action="soba_multi.cgi">);
+  print qq(<h3>SObA terms - Enter a list of ontology terms (of the same type) and their associated statistical (correct-P or Q) values for a SObA graph</h3>\n);
   print qq(Enter datatype objects paired with q-values on separate lines:<br/>\n);
-  print qq(<textarea rows="8" cols="80" name="objectsQvalue" id="objectsQvalue">$exampleData</textarea>);
+  print qq(<textarea rows="8" cols="80" placeholder="$exampleData" name="objectsQvalue" id="objectsQvalue"></textarea>);
   print qq(<input type="hidden" name="filterForLcaFlag" id="filterForLcaFlag" value="1">);
   print qq(<input type="hidden" name="filterLongestFlag" id="filterLongestFlag" value="1">);
   print qq(<input type="hidden" name="showControlsFlag" id="showControlsFlag" value="0">);
-  print qq(<input type="submit" name="action" id="analyzePairsButton" value="Analyze Pairs"><br/><br/><br/>);
+  print qq(<input type="submit" name="action" id="analyzePairsButton" value="Analyze Terms"><br/><br/><br/>);
   print qq(</form>);
   print qq(</body></html>);
 } # sub pickOntologyTermsPage
 
 sub pickTwoGenesPage {
-  print "Content-type: text/html\n\n";
+#   print "Content-type: text/html\n\n";
   my $title = 'SObA pick two genes';
+  &printHtmlHeader($title);
   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
   $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
@@ -324,7 +333,7 @@ sub pickTwoGenesPage {
     <script type="text/javascript" src="../javascript/soba_multi.js"></script>
 EndOfText
 
-  $header .= "<title>$title</title>\n";
+#   $header .= "<title>$title</title>\n";
   $header .= "</head>";
   $header .= '<body class="yui-skin-sam">';
   print qq($header);
@@ -338,7 +347,8 @@ EndOfText
   my $perl_scalar = $json->decode( $page_data );
   my %jsonHash = %$perl_scalar;
 
-  print qq(Select a datatype to display.<br/>\n);
+  print qq(<h3>SObA Gene Pair - combines and compares ontology annotations of a pair of genes</h3>\n);
+  print qq(Select an ontology to display.<br/>\n);
 # UNDO for biggo
 #   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
   my @datatypes = qw( anatomy disease go lifestage phenotype );
@@ -396,8 +406,9 @@ EndOfText
 } # sub pickTwoGenesPage
 
 sub pickOneGenePage {
-  print "Content-type: text/html\n\n";
+#   print "Content-type: text/html\n\n";
   my $title = 'SObA pick a gene';
+  &printHtmlHeader($title);
   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
   $header .= "<title>$title</title>\n";
 
@@ -1419,10 +1430,14 @@ my $debugText = '';
 #   $focusTermId = 'WB:WBGene00001135';
   my $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
   my $geneOneName = ''; my $focusTermName = '';
+  my $legendtitlediv = '';
+  my ($infogif) = &getInfoGif();
   if ($processType eq 'analyze_pairs') {
+      $legendtitlediv = qq(<h3>SObA Terms - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#List_of_terms" target="_blank">$infogif</a></h3>\n);
 #       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
     elsif ($geneOneId) {
+      $legendtitlediv = qq(<h3>SObA Gene Pair - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">$infogif</a></h3>\n);
       $withoutDirectLegendNodeColor = 'black';
       $withDirectLegendNodeColor    = 'black';
       ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
@@ -1456,16 +1471,19 @@ my $debugText = '';
   if ($filterLongestFlag) { $checked_filterLongest = 'checked="checked"'; }
   my $show_node_count = 'none';
   if ($nodeCountFlag)     { $show_node_count = ''; }
+
+  my $title = qq(<title>$roots $focusTermId Cytoscape view</title>);
+  &printHtmlHeader($title);
+# Content-type: text/html\n
+# <!DOCTYPE html>
+# <html>
+# <head>
   print << "EndOfText";
-Content-type: text/html\n
-<!DOCTYPE html>
-<html>
-<head>
 <link href="/~azurebrd/work/cytoscape/style.css" rel="stylesheet" />
 <link href="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.css" rel="stylesheet" type="text/css" />
 <meta charset=utf-8 />
 <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
-<title>$roots $focusTermId Cytoscape view</title>
+<!--<title>$roots $focusTermId Cytoscape view</title>--><!-- put back if removing wormbase style header -->
 
 
 <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
@@ -1622,7 +1640,7 @@ Content-type: text/html\n
           document.getElementById('maxDepth').options[i-1] = new Option(label, i, true, false) }
         document.getElementById('maxDepth').selectedIndex = maxOption - 1;
 
-        cyPhenGraph.on('mouseover', 'edge', function(e){
+        cyPhenGraph.on('click', 'edge', function(e){
           var edge        = e.cyTarget; 
           var nodeId      = edge.data('target');
           var nodeObj     = cyPhenGraph.getElementById( nodeId );
@@ -2042,6 +2060,7 @@ $analyzePairsText
     </div>
   <div id="loadingdiv" style="z-index: 9999; border: 1px solid #aaa; position: relative; float: left; width: 200px; display: '';">Loading <img src="loading.gif" /></div>
   <div id="controldiv" style="z-index: 9999; border: 1px solid #aaa; position: relative; float: left; width: 200px; display: none;">
+    <div id="legendtitlediv">$legendtitlediv</div>
     <div id="exportdiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
       <button id="view_png_button">export png</button>
       <button id="view_edit_button" style="display: none;">go back</button><br/>
@@ -2107,28 +2126,28 @@ $analyzePairsText
       <div id="evidencetypeanatomy" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_eta"  id="radio_eta_all"             value="radio_eta_all"             $checked_radio_eta_all >all evidence types</input><br/>
         <input type="radio" name="radio_eta"  id="radio_eta_onlyexprcluster" value="radio_eta_onlyexprcluster" $checked_radio_eta_onlyexprcluster >only expression cluster</input><br/>
-        <input type="radio" name="radio_eta"  id="radio_eta_onlyexprpattern" value="radio_eta_onlyexprpattern" $checked_radio_eta_onlyexprpattern >only expression pattern</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_eta"  id="radio_eta_onlyexprpattern" value="radio_eta_onlyexprpattern" $checked_radio_eta_onlyexprpattern >only expression pattern</input><br/><br/>
+      </div>
       <div id="evidencetypephenotype" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etp"  id="radio_etp_all"           value="radio_etp_all"           $checked_radio_etp_all >all evidence types</input><br/>
         <input type="radio" name="radio_etp"  id="radio_etp_onlyrnai"      value="radio_etp_onlyrnai"      $checked_radio_etp_onlyrnai >only rnai</input><br/>
-        <input type="radio" name="radio_etp"  id="radio_etp_onlyvariation" value="radio_etp_onlyvariation" $checked_radio_etp_onlyvariation >only variation</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_etp"  id="radio_etp_onlyvariation" value="radio_etp_onlyvariation" $checked_radio_etp_onlyvariation >only variation</input><br/><br/>
+      </div>
       <div id="evidencetypedisease" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etd" id="radio_etd_all"        value="radio_etd_all"        $checked_radio_etd_all ><a href="http://geneontology.org/docs/guide-go-evidence-codes/" target="_blank">all evidence types</a></input><br/>
-        <input type="radio" name="radio_etd" id="radio_etd_excludeiea" value="radio_etd_excludeiea" $checked_radio_etd_excludeiea >exclude IEA</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_etd" id="radio_etd_excludeiea" value="radio_etd_excludeiea" $checked_radio_etd_excludeiea >exclude IEA</input><br/><br/>
+      </div>
       <div id="evidencetypego" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etgo" id="radio_etgo_withiea"    value="radio_etgo_withiea"    $checked_radio_etgo_withiea ><a href="http://geneontology.org/docs/guide-go-evidence-codes/" target="_blank">all evidence types</a></input><br/>
         <input type="radio" name="radio_etgo" id="radio_etgo_excludeiea" value="radio_etgo_excludeiea" $checked_radio_etgo_excludeiea >exclude IEA</input><br/>
-        <input type="radio" name="radio_etgo" id="radio_etgo_onlyiea"    value="radio_etgo_onlyiea"    $checked_radio_etgo_onlyiea >experimental evidence only</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_etgo" id="radio_etgo_onlyiea"    value="radio_etgo_onlyiea"    $checked_radio_etgo_onlyiea >experimental evidence only</input><br/><br/>
+      </div>
       $legendSkipEvidenceEnd
       <div id="rootschosen" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="checkbox" name="root_bp" id="root_bp" value="GO:0008150" $checked_root_bp >Biological Process</input><br/>
         <input type="checkbox" name="root_cc" id="root_cc" value="GO:0005575" $checked_root_cc >Cellular Component</input><br/>
-        <input type="checkbox" name="root_mf" id="root_mf" value="GO:0003674" $checked_root_mf >Molecular Function</input><br/>
-      </div><br/>
+        <input type="checkbox" name="root_mf" id="root_mf" value="GO:0003674" $checked_root_mf >Molecular Function</input><br/><br/>
+      </div>
       <input type="hidden" name="focusTermId" value="$focusTermId">	<!-- not sure what this is for -->
       <div id="controlMenu" style="display: $displayControlMenu;">
         <!--Max Nodes<input type="input" size="3" id="maxNodes" name="maxNodes" value="0"><br/>-->
@@ -2218,7 +2237,18 @@ sub recurseLongestPath {
 
 sub printHtmlFooter { print qq(</body></html>\n); }
 
+# sub printHtmlHeader { 
+#   my $javascript = << "EndOfText";
+# <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+# </script>
+# EndOfText
+#   print qq(Content-type: text/html\n\n$header $javascript<body>\n); 
+# }
+
 sub printHtmlHeader { 
+  my ($title) = @_;
+  if ($title) { $cshlHeader =~ s/<title>(.*?)<\/title>/<title>$title<\/title>/; }
+  $cshlHeader =~ s|<script src="https://www.wormbase.org/static/js/wormbase.min.js" type="text/javascript"></script>||;		# remove javascript to prevent popup text when hovering over nodes
   my $javascript = << "EndOfText";
 <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
 <script type="text/javascript">
@@ -2232,7 +2262,9 @@ function togglePlusMinus(element) {
 }
 </script>
 EndOfText
-  print qq(Content-type: text/html\n\n<html><head><title>Amigo testing</title>$javascript</head><body>\n); }
+#   print qq(Content-type: text/html\n\n<html><head><title>Amigo testing</title>$javascript</head><body>\n); 
+  print qq(Content-type: text/html\n\n$cshlHeader $javascript</head>\n); 
+}
 
 sub getHtmlVar {                
   no strict 'refs';             
@@ -2261,4 +2293,131 @@ sub untaint {
   } # else # if ($tainted eq "")
   return $untainted;
 } # sub untaint
+
+
+sub getInfoGif {
+  my $infogif = <<"EndOfText";
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.1"
+   width="14"
+   height="14.485189"
+   id="svg2"
+   inkscape:version="0.48.3.1 r9886"
+   sodipodi:docname="info.svg">
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="640"
+     inkscape:window-height="480"
+     id="namedview15"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:zoom="4.3491799"
+     inkscape:cx="7.0000054"
+     inkscape:cy="7.2369895"
+     inkscape:window-x="1044"
+     inkscape:window-y="285"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg2" />
+  <defs
+     id="defs4">
+    <linearGradient
+       id="linearGradient3759">
+      <stop
+         id="stop3761"
+         style="stop-color:#ffffff;stop-opacity:1"
+         offset="0" />
+    </linearGradient>
+    <linearGradient
+       x1="274.82114"
+       y1="438.6864"
+       x2="278.05551"
+       y2="438.6864"
+       id="linearGradient3771"
+       xlink:href="#linearGradient3759"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(3.8755518,0,0,3.8755519,-1003.9342,516.823)" />
+  </defs>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     transform="translate(-271.74999,-421.19103)"
+     id="layer1">
+    <text
+       x="268.57144"
+       y="423.79074"
+       id="text3773"
+       xml:space="preserve"
+       style="font-size:18px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       sodipodi:linespacing="125%"><tspan
+         x="268.57144"
+         y="423.79074"
+         id="tspan3775" /></text>
+    <g
+       transform="matrix(0.26666667,0,0,0.26666667,204.41666,314.18466)"
+       id="g2990">
+      <path
+         d="m 296.78571,452.18362 a 15.535714,16.25 0 1 1 -31.07142,0 15.535714,16.25 0 1 1 31.07142,0 z"
+         transform="matrix(1.4560743,0,0,1.4470161,-130.7709,-225.88336)"
+         id="path2989"
+         style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:5;stroke-miterlimit:5;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+         inkscape:connector-curvature="0" />
+      <text
+         x="272.42188"
+         y="441.70511"
+         id="text3777"
+         xml:space="preserve"
+         style="font-size:18px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         sodipodi:linespacing="125%"><tspan
+           x="272.42188"
+           y="441.70511"
+           id="tspan3779"
+           style="font-size:40px;font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-opacity:1;font-family:Times New Roman;-inkscape-font-specification:'Times New Roman, Bold Italic'">i</tspan></text>
+    </g>
+  </g>
+</svg>
+EndOfText
+  return $infogif;
+}
+
+
+sub cshlNew {
+  my $title = shift;
+  unless ($title) { $title = ''; }      # init title in case blank
+  my $page = get "http://tazendra.caltech.edu/~azurebrd/sanger/wormbaseheader/WB_header_footer.html";
+#  $page =~ s/href="\//href="http:\/\/www.wormbase.org\//g;
+#  $page =~ s/src="/src="http:\/\/www.wormbase.org/g;
+  my ($header, $footer) = $page =~ m/^(.*?)\s+DIVIDER\s+(.*?)$/s;  # 2006 11 20    # get this from tazendra's script result.
+#   $header =~ s/WormBase - Home Page/$title/g;                 # 2015 05 07    # wormbase 2.0
+#   $header =~ s/WS2../WS256/g; # Dictionary freeze for P/GEA paper review process
+  $header =~ s/<title>.*?<\/title>/<title>$title<\/title>/g;
+  return ($header, $footer);
+} # sub cshlNew
 
