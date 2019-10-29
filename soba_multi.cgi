@@ -128,6 +128,7 @@ sub autocompleteGene {
 # Exact match (case sensitive)
   my $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(bioentity_internal_id:' . $escapedWords . '+OR+bioentity_label:' . $escapedWords . '+OR+bioentity_name:' . $escapedWords . '+OR+synonym:' . $escapedWords . ')';
   if ($taxonFq) { $solr_gene_url .= "&fq=($taxonFq)"; }
+# print qq($solr_gene_url<br><br>\n\n);
   my ($matchesHashref) = &solrSearch( $solr_gene_url, \%matches, $max_results);
   %matches = %$matchesHashref;
 
@@ -401,6 +402,7 @@ EndOfText
     print qq(</div>\n);
     print qq(<br/><br/>\n);
   }
+  print qq(<button onclick="document.getElementById('input_GeneOne').value=''; document.getElementById('input_GeneTwo').value='';">reset gene inputs</button><br/>\n);
 
   print qq(</body></html>);
 } # sub pickTwoGenesPage
@@ -2248,7 +2250,7 @@ sub printHtmlFooter { print qq(</body></html>\n); }
 sub printHtmlHeader { 
   my ($title) = @_;
   if ($title) { $cshlHeader =~ s/<title>(.*?)<\/title>/<title>$title<\/title>/; }
-  $cshlHeader =~ s|<script src="https://www.wormbase.org/static/js/wormbase.min.js" type="text/javascript"></script>||;		# remove javascript to prevent popup text when hovering over nodes
+  $cshlHeader =~ s|<script src="https://www.wormbase.org/static/js/wormbase.min.js" type="text/javascript"></script>||;		# remove javascript to prevent popup text when hovering over nodes	# may not need to remove it
   my $javascript = << "EndOfText";
 <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
 <script type="text/javascript">
