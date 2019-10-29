@@ -1211,6 +1211,7 @@ sub annotSummaryJsonCode {
     } # if ($geneOneId)
 
 
+
 #     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity);
 #     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneOnePieColor" : "$geneOnePieColor", "geneOneMinusPieSize" : $geneOneMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneOneMinusPieColor" : "$geneOneMinusPieColor", "geneTwoPieSize" : $geneTwoPieSize, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneTwoPieColor" : "$geneTwoPieColor", "geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity, "geneTwoMinusPieColor" : "$geneTwoMinusPieColor");
     my $pieInfo = qq(, );
@@ -1262,7 +1263,21 @@ sub annotSummaryJsonCode {
         push @nodes, qq({ "data" : { "id" : "GO:0000000", "name" : "Gene Ontology", "annotCounts" : "", "qvalue" : "", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" } }); } } }
 
   unless (scalar @nodes > 0) { 
-    push @nodes, qq({ "data" : { "id" : "No Annotations", "name" : "No Annotations", "annotCounts" : "1", "qvalue" : "", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" } }); }
+    my $pieInfo = qq(, );
+    $pieInfo .= qq("whichGeneHighlight" : "geneBoth", );
+    $pieInfo .= qq("geneOnePieSize" : 100, "geneOnePieOpacity" : 1, "geneOnePieColor" : "blue", );
+    $pieInfo .= qq("geneTwoPieSize" : 0, "geneTwoPieOpacity" : 0, "geneTwoPieColor" : "blue", );
+    $pieInfo .= qq("geneOnePieSizeTotalcount" : 100, "geneOnePieOpacityTotalcount" : 1, "geneOnePieColorTotalcount" : "blue", );
+    $pieInfo .= qq("geneTwoPieSizeTotalcount" : 0, "geneTwoPieOpacityTotalcount" : 0, "geneTwoPieColorTotalcount" : "blue", );
+    $pieInfo .= qq("geneOnePieSizePercentage" : 100, "geneOnePieOpacityPercentage" : 1, "geneOnePieColorPercentage" : "blue", );
+    $pieInfo .= qq("geneOneMinusPieSize" : 0, "geneOneMinusPieOpacity" : 0, "geneOneMinusPieColor" : "blue", );
+    $pieInfo .= qq("geneTwoMinusPieSize" : 0, "geneTwoMinusPieOpacity" : 0, "geneTwoMinusPieColor" : "blue", );
+    $pieInfo .= qq("geneTwoPieSizePercentage" : 0, "geneTwoPieOpacityPercentage" : 0, "geneTwoPieColorPercentage" : "blue", );
+    $pieInfo .= qq("geneOneMinusPieSizeTotalcount" : 0, "geneOneMinusPieOpacityTotalcount" : 0, "geneOneMinusPieColorTotalcount" : "blue", );
+    $pieInfo .= qq("geneTwoMinusPieSizeTotalcount" : 0, "geneTwoMinusPieOpacityTotalcount" : 0, "geneTwoMinusPieColorTotalcount" : "blue", );
+    $pieInfo .= qq("geneOneMinusPieSizePercentage" : 0, "geneOneMinusPieOpacityPercentage" : 0, "geneOneMinusPieColorPercentage" : "blue", );
+    $pieInfo .= qq("geneTwoMinusPieSizePercentage" : 0, "geneTwoMinusPieOpacityPercentage" : 0, "geneTwoMinusPieColorPercentage" : "blue");
+    push @nodes, qq({ "data" : { "id" : "No Annotations", "name" : "No Annotations", "annotCounts" : "1", "qvalue" : "", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" $pieInfo } }); }
 
   my $ucfirstDatatype = ucfirst($datatype);
   my $nodes = join",\n", @nodes; 
