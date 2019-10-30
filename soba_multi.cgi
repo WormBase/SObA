@@ -1373,8 +1373,8 @@ my $debugText = '';
 
   my $legendBlueNodeText = 'Without Direct Annotation';
   my $legendRedNodeText = 'With Direct Annotation';
-  my $legendWeightstateWeighted = 'Annotation weighted';
-  my $legendWeightstateUnweighted = 'Annotation unweighted';
+  my $legendWeightstateWeighted = 'Weighted';
+  my $legendWeightstateUnweighted = 'Uniform';
 #   my $legendPietypeTotalcount = 'Pie Slice Total counts';
 #   my $legendPietypePercentage = 'Pie Slice Percentage';
   my $legendPietypeTotalcount = 'Absolute count slices';
@@ -2079,7 +2079,7 @@ $analyzePairsText
   <div id="controldiv" style="z-index: 9999; border: 1px solid #aaa; position: relative; float: left; width: 200px; display: none;">
     <div id="legendtitlediv">$legendtitlediv</div>
     <div id="exportdiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
-      <button id="view_png_button">export png</button>
+      <button id="view_png_button">Save Image</button>
       <button id="view_edit_button" style="display: none;">go back</button><br/>
     </div>
     <div id="legenddiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
