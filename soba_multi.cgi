@@ -306,6 +306,7 @@ sub pickOntologyTermsPage {
   my $exampleData = qq(WBPhenotype:0000012	0.0001\nWBPhenotype:0002056	0.00042\nWBPhenotype:0000462	0.005\nWBPhenotype:0001621	0.049\nWBPhenotype:0000200	0.07\nWBPhenotype:0000033	0.093\n);
   print qq(<form method="post" action="soba_multi.cgi">);
   print qq(<h3>SObA terms - Enter a list of ontology terms (of the same type) and their associated statistical (correct-P or Q) values for a SObA graph</h3>\n);
+  print qq(<a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">user guide</a><br/><br/>\n);
   print qq(Enter datatype objects paired with q-values on separate lines:<br/>\n);
   print qq(<textarea rows="8" cols="80" placeholder="$exampleData" name="objectsQvalue" id="objectsQvalue"></textarea>);
   print qq(<input type="hidden" name="filterForLcaFlag" id="filterForLcaFlag" value="1">);
@@ -349,6 +350,7 @@ EndOfText
   my %jsonHash = %$perl_scalar;
 
   print qq(<h3>SObA Gene Pair - combines and compares ontology annotations of a pair of genes</h3>\n);
+  print qq(<a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">user guide</a><br/><br/>\n);
   print qq(Select an ontology to display.<br/>\n);
 # UNDO for biggo
 #   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
