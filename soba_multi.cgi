@@ -1105,7 +1105,7 @@ sub annotSummaryJsonCode {
 # to display ratio
 #       $annotCounts .= qq( \($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $rootNodesTotalAnnotationCount{$whichGene}\));
       my $annotCountPercentage = int($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $rootNodesTotalAnnotationCount{$whichGene} * 100);
-      $annotCounts .= qq( \(${annotCountPercentage}% of gene total\));
+      $annotCounts .= qq( \(${annotCountPercentage}% of total gene annotations\));
       $annotCounts .= "<br/>"; }
 
     my $diameter = $diameterMultiplier * &calcNodeWidth($nodes{$node}{'counts'}{'anygene'}{'anytype'}, $anyRootNodeMaxAnnotationCount{'anygene'});
@@ -1170,12 +1170,13 @@ sub annotSummaryJsonCode {
         # slicing by total count
       $geneOnePieSizeTotalcount   = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
       $geneTwoPieSizeTotalcount   = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
-      my $opacityMultiplier = 0.3;
-      my $opacityFloor = 0.40;
-      if ($rootNodesTotalAnnotationCount{geneOne}) {
-        $geneOnePieOpacityTotalcount = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor; }
-      if ($rootNodesTotalAnnotationCount{geneTwo}) {
-        $geneTwoPieOpacityTotalcount = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor; }
+# uncomment to add variable opacity
+#       my $opacityMultiplier = 0.3;
+#       my $opacityFloor = 0.40;
+#       if ($rootNodesTotalAnnotationCount{geneOne}) {
+#         $geneOnePieOpacityTotalcount = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor; }
+#       if ($rootNodesTotalAnnotationCount{geneTwo}) {
+#         $geneTwoPieOpacityTotalcount = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor; }
 
         # slicing by percentage count
       if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
@@ -1189,9 +1190,11 @@ sub annotSummaryJsonCode {
 #           $geneOneMinusPieColorPercentage = 'blue'; $geneTwoMinusPieColorPercentage = 'blue';
           $whichGeneHighlight = 'geneTwo'; }
       if ($rootNodesTotalAnnotationCount{geneOne}) {
-        $geneOnePieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * 5); }	# 10% chunks
+#         $geneOnePieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * 5); 	# 10% chunks
+        $geneOnePieSizePercentage      = 50 * $nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne}; }
       if ($rootNodesTotalAnnotationCount{geneTwo}) {
-        $geneTwoPieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * 5); }
+#         $geneTwoPieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * 5); 	# 10% chunks
+        $geneTwoPieSizePercentage      = 50 * $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo}; }
       $geneOneMinusPieSizePercentage = 50 - $geneOnePieSizePercentage;
       $geneTwoMinusPieSizePercentage = 50 - $geneTwoPieSizePercentage;
 
