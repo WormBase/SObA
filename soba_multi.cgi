@@ -99,6 +99,7 @@ sub process {
     elsif ($action eq 'frontPage')                  { &frontPage();     }	# autocomplete on gene names
     elsif ($action eq 'Analyze Terms')              { &annotSummaryCytoscape('source_ontology');     }    # autocomplete on gene names
     elsif ($action eq 'autocompleteXHR')            { &autocompleteXHR(); }
+    elsif ($action eq 'autocompleteTazendraXHR')    { &autocompleteTazendraXHR(); }
     elsif ($action eq 'One Gene to SObA Graph')     { &pickOneGenePage(); }
     elsif ($action eq 'Gene Pair to SObA Graph')    { &pickTwoGenesPage(); }
     elsif ($action eq 'Terms to SObA Graph')        { &pickOntologyTermsPage(); }
@@ -114,6 +115,16 @@ sub autocompleteXHR {
   ($var, my $field) = &getHtmlVar($query, 'field');
   if ($field eq 'Gene') { &autocompleteGene($words); }
 } # sub autocompleteXHR
+
+sub autocompleteTazendraXHR {
+  print "Content-type: text/html\n\n";
+  my ($var, $words) = &getHtmlVar($query, 'query');
+  ($var, my $objectType) = &getHtmlVar($query, 'objectType');
+  if ($objectType eq 'gene') { 
+    my $url = 'http://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&userValue=' . $words;
+    my $page_data = get $url;
+    if ($page_data) { print qq($page_data\n); } }
+} # sub autocompleteTazendraXHR
 
 sub autocompleteGene {
   my ($words) = @_;
@@ -1444,8 +1455,10 @@ my $debugText = '';
 
 #   if ($processType eq 'source_gene') {
   my $geneOneId = '';
-  unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/, (.*?),/; }
-  unless ($geneOneId) {   ($geneOneId)   = $geneOneValue      =~ m/, (.*?),/; }
+#   unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/, (.*?),/; }		# autocomplete format from solr query
+#   unless ($geneOneId) {   ($geneOneId)   = $geneOneValue      =~ m/, (.*?),/; }		# autocomplete format from solr query
+  unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/\( (.*?) \)/; $focusTermId = 'WB:' . $focusTermId; }		# autocomplete format from tazendra OA query
+  unless ($geneOneId) {   ($geneOneId)   = $geneOneValue =~ m/\( (.*?) \)/;      $geneOneId   = 'WB:' . $geneOneId;   }		# autocomplete format from tazendra OA query
 #   }
 
   my $goslimButtons = '<a href="http://geneontology.org/docs/go-subset-guide/" target="_blank">Alliance Slim terms</a> in graph:<br/>';

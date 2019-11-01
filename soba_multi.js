@@ -44,8 +44,9 @@ function setAutocompleteListeners() {                              // add listen
             for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
               if (radioDatatypeElements[i].checked) {
                 datatypeValue = radioDatatypeElements[i].value; } }
-            var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  
 //             var sUrl = cgiUrl + "?action=autocompleteXHR&taxonFq=" + taxonFq + "&field=" + field + "&";   // ajax calls need curator and datatype
+//             var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  // good until 2019 11 01
+            var sUrl = cgiUrl + "?action=autocompleteTazendraXHR&objectType=gene&";  	// to try to get from tazendra OA
             var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
             oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
             oDS.responseSchema = {                                 // Define the schema of the delimited results
@@ -92,7 +93,8 @@ function setAutocompleteListeners() {                              // add listen
                 for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
                   if (radioDatatypeElements[i].checked) {
                     datatypeValue = radioDatatypeElements[i].value; } }
-                var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";
+//                 var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";
+                var sUrl = cgiUrl + "?action=autocompleteTazendraXHR&objectType=gene&";  	// to try to get from tazendra OA
                 var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
                 oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
                 oDS.responseSchema = {                                 // Define the schema of the delimited results
