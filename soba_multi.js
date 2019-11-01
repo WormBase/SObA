@@ -118,7 +118,7 @@ function setAutocompleteListeners() {                              // add listen
                     forcedOAC: forcedOAC
                 }
             }();
-        } // for (var j = 0; j < autocompleteFieldsArray.length; j++) {     // for each field to autocomplete
+        } // for (var j = 0; j < autocompleteFieldsArray.length; j++)      // for each field to autocomplete
     } // if (whichPage === 'pickTwoGenesPage')
 
 
@@ -145,7 +145,8 @@ function onAutocompleteItemSelect(oSelf , elItem) {          // if an item is hi
       if (radioDatatypeElements[i].checked) {
         datatypeValue = radioDatatypeElements[i].value; } }
     var url = 'soba_multi.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&datatype=' + datatypeValue + '&autocompleteValue=' + value;
-    window.location = url; }
+//     window.location = url; 					// uncomment to load graph automatically
+  }
   else if (field === 'GeneOne') {
     document.getElementById('controlsOne').style.display = 'none';
     document.getElementById('controlsTwo').style.display = ''; }
@@ -164,7 +165,8 @@ function onAutocompleteItemSelect(oSelf , elItem) {          // if an item is hi
     var url = 'soba_multi.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&datatype=' + datatypeValue + '&geneOneValue=' + geneOneValue + '&autocompleteValue=' + value;
     console.log('genetwo');
     console.log('genetwo: ' + url);
-    window.location = url; }
+//     window.location = url; 					// uncomment to load graph automatically
+  }
 } // function onAutocompleteItemSelect(oSelf , elItem) 
 
 // function asyncWbdescription(wbgene) {

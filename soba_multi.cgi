@@ -90,16 +90,20 @@ sub process {
   my $action;                   # what user clicked
   unless ($action = $query->param('action')) { $action = 'none'; }
 
-  if ($action eq 'annotSummaryCytoscape')      { &annotSummaryCytoscape('single_gene'); }
+# http://wobr2.caltech.edu/~azurebrd/cgi-bin/soba_biggo.cgi?radio_datatype=phenotype&gene=let-23+%28Caenorhabditis+elegans%2C+WB%3AWBGene00002299%2C+-%2C+ZK1067.1%29&gene=lin-3+%28Caenorhabditis+elegans%2C+WB%3AWBGene00002992%2C+-%2C+F36H1.4%29&action=Graph+Two+Genes
+
+  if ($action eq 'annotSummaryCytoscape')           { &annotSummaryCytoscape('source_gene'); }
     elsif ($action eq 'annotSummaryGraph')          { &annotSummaryGraph();     }
     elsif ($action eq 'annotSummaryJson')           { &annotSummaryJson();      }	# temporarily keep this for the live www.wormbase going through the fake phenotype_graph_json widget
     elsif ($action eq 'annotSummaryJsonp')          { &annotSummaryJsonp();     }	# new jsonp widget to get directly from .wormbase without fake widget
-    elsif ($action eq 'frontPage')          { &frontPage();     }	# autocomplete on gene names
-    elsif ($action eq 'Analyze Terms')              { &annotSummaryCytoscape('analyze_pairs');     }    # autocomplete on gene names
-    elsif ($action eq 'autocompleteXHR') {            &autocompleteXHR(); }
-    elsif ($action eq 'One Gene to SObA Graph') {     &pickOneGenePage(); }
-    elsif ($action eq 'Gene Pair to SObA Graph') {    &pickTwoGenesPage(); }
-    elsif ($action eq 'Terms to SObA Graph') {        &pickOntologyTermsPage(); }
+    elsif ($action eq 'frontPage')                  { &frontPage();     }	# autocomplete on gene names
+    elsif ($action eq 'Analyze Terms')              { &annotSummaryCytoscape('source_ontology');     }    # autocomplete on gene names
+    elsif ($action eq 'autocompleteXHR')            { &autocompleteXHR(); }
+    elsif ($action eq 'One Gene to SObA Graph')     { &pickOneGenePage(); }
+    elsif ($action eq 'Gene Pair to SObA Graph')    { &pickTwoGenesPage(); }
+    elsif ($action eq 'Terms to SObA Graph')        { &pickOntologyTermsPage(); }
+    elsif ($action eq 'Graph Two Genes')            { &annotSummaryCytoscape('source_gene'); }
+    elsif ($action eq 'Graph One Gene')             { &annotSummaryCytoscape('source_gene'); }
     else { &frontPage(); }				# no action, show dag by default
 } # sub process
 
@@ -349,6 +353,7 @@ EndOfText
   my $perl_scalar = $json->decode( $page_data );
   my %jsonHash = %$perl_scalar;
 
+  print qq(<form method="get" action="soba_multi.cgi">\n);
   print qq(<h3>SObA Gene Pair - combines and compares ontology annotations of a pair of genes</h3>\n);
   print qq(<a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">user guide</a><br/><br/>\n);
   print qq(Select an ontology to display.<br/>\n);
@@ -362,14 +367,15 @@ EndOfText
   print qq(<br/>);
 
   my @fieldCount  = ('One', 'Two');
+  my $fieldName = 'geneOneValue';
   foreach my $fieldCount (@fieldCount) {
-    my $countGene = 'first'; if ($fieldCount eq 'Two') { $countGene = 'second'; }
+    my $countGene = 'first'; if ($fieldCount eq 'Two') { $countGene = 'second'; $fieldName = 'autocompleteValue'; }
     print << "EndOfText";
       <B>Choose the $countGene gene <!--<span style="color: red;">*</span>--></B>
       <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
         <span id="containerForcedGene${fieldCount}AutoComplete">
           <div id="forcedGene${fieldCount}AutoComplete">
-                <input size="50" name="gene" id="input_Gene${fieldCount}" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
+                <input size="50" name="$fieldName" id="input_Gene${fieldCount}" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
                 <div id="forcedGene${fieldCount}Container"></div>
           </div></span><br/><br/>
 EndOfText
@@ -404,7 +410,9 @@ EndOfText
     print qq(</div>\n);
     print qq(<br/><br/>\n);
   }
+  print qq(<input type="submit" name="action" value="Graph Two Genes"><br/><br/>\n);
   print qq(<button onclick="document.getElementById('input_GeneOne').value=''; document.getElementById('input_GeneTwo').value='';">reset gene inputs</button><br/>\n);
+  print qq(</form>\n);
 
   print qq(</body></html>);
 } # sub pickTwoGenesPage
@@ -454,6 +462,7 @@ EndOfText
   my $perl_scalar = $json->decode( $page_data );
   my %jsonHash = %$perl_scalar;
 
+  print qq(<form method="get" action="soba_multi.cgi">\n);
   print qq(Select a datatype to display.<br/>\n);
 # UNDO for biggo
 #   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
@@ -469,10 +478,11 @@ EndOfText
     <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
       <span id="containerForcedGeneAutoComplete">
         <div id="forcedGeneAutoComplete">
-              <input size="50" name="gene" id="input_Gene" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
+              <input size="50" name="autocompleteValue" id="input_Gene" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
               <div id="forcedGeneContainer"></div>
         </div></span><br/><br/>
 EndOfText
+  print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
 
   print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
   my %taxons;
@@ -498,6 +508,8 @@ EndOfText
   foreach my $taxon (sort keys %taxons) {
     print $taxon;
   }
+
+  print qq(</form>\n);
 
   print qq(</body></html>);
 } # sub pickOneGenePage
@@ -1344,6 +1356,7 @@ sub annotSummaryCytoscape {
   ($var, my $autocompleteValue)    = &getHtmlVar($query, 'autocompleteValue');
   ($var, my $geneOneValue)         = &getHtmlVar($query, 'geneOneValue');
   ($var, my $datatype)             = &getHtmlVar($query, 'datatype');
+  ($var, my $radio_datatype)       = &getHtmlVar($query, 'radio_datatype');
   ($var, my $showControlsFlag)     = &getHtmlVar($query, 'showControlsFlag');
   ($var, my $fakeRootFlag)         = &getHtmlVar($query, 'fakeRootFlag');
   ($var, my $filterLongestFlag)    = &getHtmlVar($query, 'filterLongestFlag');
@@ -1360,6 +1373,7 @@ sub annotSummaryCytoscape {
   ($var, my $root_mf)              = &getHtmlVar($query, 'root_mf');
   ($var, my $root_cc)              = &getHtmlVar($query, 'root_cc');
   ($var, my $objectsQvalue)        = &getHtmlVar($query, 'objectsQvalue');
+  unless ($datatype) { $datatype = $radio_datatype; }
   my $encodedObjectsQvalue         = uri_encode($objectsQvalue);
   my $toPrint = ''; my $return = '';
   my $checked_radio_etp_all      = 'checked="checked"'; my $checked_radio_etp_onlyrnai = '';    my $checked_radio_etp_onlyvariation = '';
@@ -1388,7 +1402,7 @@ my $debugText = '';
   my $legendSkipEvidenceEnd = '';
   my $analyzePairsText = '';
   my %termsQvalue;
-  if ($processType eq 'analyze_pairs') {
+  if ($processType eq 'source_ontology') {
     my ($is_ok, $termsQvalue_datatype, $termsQvalueHref) = &validateListTermsQvalue($objectsQvalue);
     if ($is_ok) {
 #         $analyzePairsText .= qq(DATATYPE $termsQvalue_datatype<br>\n);
@@ -1427,7 +1441,7 @@ my $debugText = '';
     elsif ($datatype eq 'lifestage') { push @roots, "WBls:0000075";        }
   my $roots = join",", @roots;
 
-#   if ($processType eq 'single_gene') {
+#   if ($processType eq 'source_gene') {
   my $geneOneId = '';
   unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/, (.*?),/; }
   unless ($geneOneId) {   ($geneOneId)   = $geneOneValue      =~ m/, (.*?),/; }
@@ -1454,7 +1468,7 @@ my $debugText = '';
   my $geneOneName = ''; my $focusTermName = '';
   my $legendtitlediv = '';
   my ($infogif) = &getInfoGif();
-  if ($processType eq 'analyze_pairs') {
+  if ($processType eq 'source_ontology') {
       $legendtitlediv = qq(<h3>SObA Terms - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#List_of_terms" target="_blank">$infogif</a></h3>\n);
 #       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
       $jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
@@ -1522,8 +1536,8 @@ my $debugText = '';
 \$(function(){
   // get exported json from cytoscape desktop via ajax
   var data = { action: "annotSummaryJson", datatype: "$datatype" };
-  if ('$processType' === 'single_gene')   {                  data["focusTermId"]       = "$focusTermId"; } 
-    else if ('$processType' === 'analyze_pairs') {           data["objectsQvalue"]     = "$encodedObjectsQvalue"; } 
+  if ('$processType' === 'source_gene')   {                  data["focusTermId"]       = "$focusTermId"; } 
+    else if ('$processType' === 'source_ontology') {         data["objectsQvalue"]     = "$encodedObjectsQvalue"; } 
   if ('$geneOneId' !== '') {                                 data["geneOneId"]         = "$geneOneId"; }
   if (('$datatype' === 'go') || ('$datatype' === 'biggo')) { data["radio_etgo"]        = "$radio_etgo"; data["rootsChosen"] = "$roots"; }
     else if ('$datatype' === 'phenotype') {                  data["radio_etp"]         = "$radio_etp"; }
@@ -2001,7 +2015,7 @@ console.log( "Updating from " + event.data.name );
       if (document.getElementById(rootTerm).checked) { rootsChosen.push(document.getElementById(rootTerm).value); } });
     var rootsChosenGroup = rootsChosen.join(',');
     var jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&focusTermId=$focusTermId&focusTermName=$focusTermName&datatype=$datatype';
-    if ('$processType' === 'analyze_pairs') {
+    if ('$processType' === 'source_ontology') {
         jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&objectsQvalue=$encodedObjectsQvalue&datatype=$datatype'; }
       else if ('$geneOneId' !== '') {
         jsonUrl = 'soba_multi.cgi?action=annotSummaryJson&geneOneId=$geneOneId&focusTermId=$focusTermId&geneOneName=$geneOneName&focusTermName=$focusTermName&datatype=$datatype'; }
@@ -2014,8 +2028,8 @@ console.log( "Updating from " + event.data.name );
 console.log('jsonUrl ' + jsonUrl);
 //     var data = { action: "annotSummaryJson", focusTermId: "$focusTermId", datatype: "$datatype" };
     var data = { action: "annotSummaryJson", datatype: "$datatype" };
-    if ('$processType' === 'single_gene')   {                  data["focusTermId"]       = "$focusTermId"; } 
-      else if ('$processType' === 'analyze_pairs') {           data["objectsQvalue"]     = "$encodedObjectsQvalue"; } 
+    if ('$processType' === 'source_gene')   {                  data["focusTermId"]       = "$focusTermId"; } 
+      else if ('$processType' === 'source_ontology') {         data["objectsQvalue"]     = "$encodedObjectsQvalue"; } 
     if ('$geneOneId' !== '') {                                 data["geneOneId"]         = "$geneOneId"; }
     if (('$datatype' === 'go') || ('$datatype' === 'biggo')) { data["radio_etgo"] = radioEtgo; data["rootsChosen"] = rootsChosenGroup; }
       else if ('$datatype' === 'phenotype') { data["radio_etp"]         = radioEtp; }
