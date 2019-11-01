@@ -410,8 +410,8 @@ EndOfText
     print qq(</div>\n);
     print qq(<br/><br/>\n);
   }
-  print qq(<input type="submit" name="action" value="Graph Two Genes"><br/><br/>\n);
-  print qq(<button onclick="document.getElementById('input_GeneOne').value=''; document.getElementById('input_GeneTwo').value='';">reset gene inputs</button><br/>\n);
+  print qq(<input type="submit" name="action" value="Graph Two Genes" ></input><br/><br/>\n);
+  print qq(<input name="reset" type="reset" value="Reset Gene Inputs" onclick="document.getElementById('input_GeneOne').value=''; document.getElementById('input_GeneTwo').value='';"><br/>\n);
   print qq(</form>\n);
 
   print qq(</body></html>);
@@ -483,6 +483,7 @@ EndOfText
         </div></span><br/><br/>
 EndOfText
   print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
+  print qq(<input name="reset" type="reset" value="Reset Gene Input" onclick="document.getElementById('input_Gene').value='';"><br/>\n);
 
   print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
   my %taxons;
