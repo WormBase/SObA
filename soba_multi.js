@@ -176,9 +176,10 @@ function onAutocompleteItemSelect(oSelf , elItem) {          // if an item is hi
 function validateGeneDatatype(whichGene) {
   let datatypeValue = getSelectedDatatype();
   let elMatch = document.getElementById('input_'+whichGene).value.match(/\( (.*?) \)/);
-  let geneId = 'WB:' + elMatch[1];
-  console.log('geneId: ' + geneId + ' datatype: ' + datatypeValue);
-  asyncCheckGeneDatatype(whichGene, geneId, datatypeValue); 
+  if (elMatch !== null) {
+    let geneId = 'WB:' + elMatch[1];
+    console.log('geneId: ' + geneId + ' datatype: ' + datatypeValue);
+    asyncCheckGeneDatatype(whichGene, geneId, datatypeValue); }
 } // function validateGeneDatatype(whichGene)
 
 function getSelectedDatatype() {
