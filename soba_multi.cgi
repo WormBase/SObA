@@ -100,6 +100,7 @@ sub process {
     elsif ($action eq 'Analyze Terms')              { &annotSummaryCytoscape('source_ontology');     }    # autocomplete on gene names
     elsif ($action eq 'autocompleteXHR')            { &autocompleteXHR(); }
     elsif ($action eq 'autocompleteTazendraXHR')    { &autocompleteTazendraXHR(); }
+    elsif ($action eq 'validateGeneDatatype')       { &validateGeneDatatype(); }
     elsif ($action eq 'One Gene to SObA Graph')     { &pickOneGenePage(); }
     elsif ($action eq 'Gene Pair to SObA Graph')    { &pickTwoGenesPage(); }
     elsif ($action eq 'Terms to SObA Graph')        { &pickOntologyTermsPage(); }
@@ -125,6 +126,18 @@ sub autocompleteTazendraXHR {
     my $page_data = get $url;
     if ($page_data) { print qq($page_data\n); } }
 } # sub autocompleteTazendraXHR
+
+sub validateGeneDatatype {
+  print "Content-type: text/html\n\n";
+  my ($var, $datatype) = &getHtmlVar($query, 'datatype');
+  ($var, my $gene)     = &getHtmlVar($query, 'gene');
+  my $url = $base_solr_url . $datatype . '/select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $gene . '%22';
+  my $page_data = get $url;
+  my $perl_scalar = $json->decode( $page_data );
+  my %jsonHash = %$perl_scalar;
+  if ($jsonHash{'response'}{'numFound'} == 0) { print qq(no data); } 
+    else { print qq(has data); }
+} # sub validateGeneDatatype
 
 sub autocompleteGene {
   my ($words) = @_;
@@ -374,7 +387,8 @@ EndOfText
   foreach my $datatype (@datatypes) {
     my $checked = '';
     if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
-    print qq(<input type="radio" name="radio_datatype" id="radio_datatype" value="$datatype" $checked onclick="setAutocompleteListeners();" >$datatype</input><br/>\n); }
+#     print qq(<input type="radio" name="radio_datatype" id="radio_datatype" value="$datatype" $checked onclick="setAutocompleteListeners();" >$datatype</input><br/>\n);
+    print qq(<input type="radio" name="radio_datatype" id="radio_datatype" value="$datatype" $checked onclick="radioDatatypeClick('TwoGenes');" >$datatype</input><br/>\n); }
   print qq(<br/>);
 
   my @fieldCount  = ('One', 'Two');
@@ -384,6 +398,7 @@ EndOfText
     print << "EndOfText";
       <B>Choose the $countGene gene <!--<span style="color: red;">*</span>--></B>
       <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
+        <span id="messageGene${fieldCount}"></span>
         <span id="containerForcedGene${fieldCount}AutoComplete">
           <div id="forcedGene${fieldCount}AutoComplete">
                 <input size="50" name="$fieldName" id="input_Gene${fieldCount}" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
