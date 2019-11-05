@@ -61,8 +61,10 @@ function setAutocompleteListeners() {                              // add listen
             var containerElement = document.getElementById(forcedOrFree + field + "Container");
             var forcedOAC = new YAHOO.widget.AutoComplete(inputElement, containerElement, oDS);
             forcedOAC.queryQuestionMark = false;                   // don't add a ? to the sUrl query since it's been built with some other values
+            forcedOAC.queryDelay = 0.1;                   	   // add a delay to wait for user to stop typing
             forcedOAC.maxResultsDisplayed = 500;
             forcedOAC.forceSelection = true;
+            forcedOAC.generateRequest = function(sQuery) { return "userValue=" + sQuery ; }; 	// instead of sending 'query' to form, use 'userValue'
             forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelect);
 // Don't needs this because don't need action on these, if it was necessary, would have to create functions like in the OA
 //             forcedOAC.selectionEnforceEvent.subscribe(onAutocompleteSelectionEnforce);
@@ -95,7 +97,8 @@ function setAutocompleteListeners() {                              // add listen
                   if (radioDatatypeElements[i].checked) {
                     datatypeValue = radioDatatypeElements[i].value; } }
 //                 var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";
-                var sUrl = cgiUrl + "?action=autocompleteTazendraXHR&objectType=gene&";  	// to try to get from tazendra OA
+//                 var sUrl = cgiUrl + "?action=autocompleteTazendraXHR&objectType=gene&";  	// to try to get from tazendra OA through cgi
+                var sUrl = "http://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&";  	// to try to get from tazendra OA
                 var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
                 oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
                 oDS.responseSchema = {                                 // Define the schema of the delimited results
@@ -109,8 +112,10 @@ function setAutocompleteListeners() {                              // add listen
                 var containerElement = document.getElementById(forcedOrFree + field + "Container");
                 var forcedOAC = new YAHOO.widget.AutoComplete(inputElement, containerElement, oDS);
                 forcedOAC.queryQuestionMark = false;                   // don't add a ? to the sUrl query since it's been built with some other values
+                forcedOAC.queryDelay = 0.1;                   	   // add a delay to wait for user to stop typing
                 forcedOAC.maxResultsDisplayed = 500;
                 forcedOAC.forceSelection = true;
+                forcedOAC.generateRequest = function(sQuery) { return "userValue=" + sQuery ; }; 	// instead of sending 'query' to form, use 'userValue'
                 forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelect);
 //                 if (fieldCount === 'One') {
 //                    forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelectOne); }
