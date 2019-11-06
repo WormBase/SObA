@@ -437,7 +437,7 @@ EndOfText
     print qq(<br/><br/>\n);
   }
   print qq(<input type="submit" name="action" value="Graph Two Genes" ></input><br/><br/>\n);
-  print qq(<input name="reset" type="reset" value="Reset Gene Inputs" onclick="document.getElementById('input_GeneOne').value=''; document.getElementById('input_GeneTwo').value='';"><br/>\n);
+  print qq(<input name="reset" type="reset" value="Reset Gene Inputs" onclick="document.getElementById('input_GeneOne').value=''; document.getElementById('input_GeneTwo').value=''; document.getElementById('messageGeneOne').innerHTML =''; document.getElementById('messageGeneTwo').innerHTML ='';"><br/>\n);
   print qq(</form>\n);
 
   print qq(</body></html>);
