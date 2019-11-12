@@ -76,6 +76,52 @@ function setAutocompleteListeners() {                              // add listen
             }
         }();
     } // if (whichPage === 'pickOneGenePage')
+    else if (whichPage === 'pickOneGeneBiggoPage') {
+        var field = 'Gene';
+        settingAutocompleteListeners = function() {
+            var taxons = [];
+            var arrCheckbox = document.getElementsByClassName("taxon");
+            for (var i = 0; arrCheckbox[i]; i++) {
+              if (arrCheckbox[i].checked) {
+                 taxons.push('taxon_label:"'+ arrCheckbox[i].value + '"');
+              }
+            } // for (i = arrCheckbox.length - 1; i > -1; i--)
+            var taxonFq = taxons.join('+OR+');
+            console.log('taxonFq ' + taxonFq);
+
+            var datatypeValue = 'biggo';
+//             var sUrl = cgiUrl + "?action=autocompleteXHR&taxonFq=" + taxonFq + "&field=" + field + "&";   // ajax calls need curator and datatype
+            var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  // good until 2019 11 01
+//             var sUrl = cgiUrl + "?action=autocompleteTazendraXHR&objectType=gene&";  	// to try to get from tazendra OA through cgi
+//             var sUrl = "http://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&";  	// to try to get from tazendra OA
+            var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
+            oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
+            oDS.responseSchema = {                                 // Define the schema of the delimited results
+                recordDelim: "\n",
+                fieldDelim: "\t"
+            };
+            oDS.maxCacheEntries = 5;                               // Enable caching
+
+            var forcedOrFree = "forced";
+            var inputElement = document.getElementById('input_'+field);
+            var containerElement = document.getElementById(forcedOrFree + field + "Container");
+            var forcedOAC = new YAHOO.widget.AutoComplete(inputElement, containerElement, oDS);
+            forcedOAC.queryQuestionMark = false;                   // don't add a ? to the sUrl query since it's been built with some other values
+            forcedOAC.queryDelay = 0.1;                   	   // add a delay to wait for user to stop typing
+            forcedOAC.maxResultsDisplayed = 500;
+            forcedOAC.forceSelection = true;
+            forcedOAC.generateRequest = function(sQuery) { return "userValue=" + sQuery ; }; 	// instead of sending 'query' to form, use 'userValue'
+            forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelect);
+// Don't needs this because don't need action on these, if it was necessary, would have to create functions like in the OA
+//             forcedOAC.selectionEnforceEvent.subscribe(onAutocompleteSelectionEnforce);
+//             forcedOAC.itemArrowToEvent.subscribe(onAutocompleteItemHighlight);
+//             forcedOAC.itemMouseOverEvent.subscribe(onAutocompleteItemHighlight);
+            return {
+                oDS: oDS,
+                forcedOAC: forcedOAC
+            }
+        }();
+    } // if (whichPage === 'pickOneGenePage')
     else if (whichPage === 'pickTwoGenesPage') {
         var autocompleteFieldsArray = ['One', 'Two'];
         for (var j = 0; j < autocompleteFieldsArray.length; j++) {     // for each field to autocomplete

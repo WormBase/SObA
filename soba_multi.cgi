@@ -102,6 +102,7 @@ sub process {
     elsif ($action eq 'autocompleteTazendraXHR')    { &autocompleteTazendraXHR(); }
     elsif ($action eq 'validateGeneDatatype')       { &validateGeneDatatype(); }
     elsif ($action eq 'One Gene to SObA Graph')     { &pickOneGenePage(); }
+    elsif ($action eq 'One Gene to Big GO SObA Graph')     { &pickOneGeneBiggoPage(); }
     elsif ($action eq 'Gene Pair to SObA Graph')    { &pickTwoGenesPage(); }
     elsif ($action eq 'Terms to SObA Graph')        { &pickOntologyTermsPage(); }
     elsif ($action eq 'Graph Two Genes')            { &annotSummaryCytoscape('source_gene'); }
@@ -112,7 +113,7 @@ sub process {
 sub autocompleteXHR {
   print "Content-type: text/html\n\n";
   my ($var, $words) = &getHtmlVar($query, 'query');
-  unless ($words) { ($var, $words) = &getHtmlVar($query, 'query'); }
+  unless ($words) { ($var, $words) = &getHtmlVar($query, 'userValue'); }
   ($var, my $field) = &getHtmlVar($query, 'field');
   if ($field eq 'Gene') { &autocompleteGene($words); }
 } # sub autocompleteXHR
@@ -317,6 +318,10 @@ sub frontPage {
   Gene Pair to SObA Graph:<br/>
   Enter two gene names to obtain a SObA Graph that illustrates their combined annotations.<br/>
   <input type="submit" name="action" value="Gene Pair to SObA Graph"><br/><br/><br/>
+
+  Big GO One Gene to SObA Graph:<br/>
+  Enter one gene name to obtain a SObA Graph that illustrates annotations.<br/>
+  <input type="submit" name="action" value="One Gene to Big GO SObA Graph"><br/><br/><br/>
 EndOfText
 
   print qq(</body></html>);
@@ -442,6 +447,96 @@ EndOfText
 
   print qq(</body></html>);
 } # sub pickTwoGenesPage
+
+
+sub pickOneGeneBiggoPage {
+#   print "Content-type: text/html\n\n";
+  my $title = 'SObA pick a Big GO gene';
+  &printHtmlHeader($title);
+  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+  $header .= "<title>$title</title>\n";
+
+  $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
+  $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
+
+  $header .= <<"EndOfText";
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/fonts/fonts-min.css" />
+    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
+    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
+    <script type="text/javascript" src="../javascript/soba_multi.js"></script>
+EndOfText
+
+  $header .= "</head>";
+  $header .= '<body class="yui-skin-sam">';
+  print qq($header);
+
+  print qq(<input type="hidden" name="which_page" id="which_page" value="pickOneGeneBiggoPage">\n);
+
+  my $datatype = 'biggo';		# by defalt for front page
+#   my $datatype = 'phenotype';		# by defalt for front page
+  my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+  my $page_data = get $solr_taxon_url;
+  my $perl_scalar = $json->decode( $page_data );
+  my %jsonHash = %$perl_scalar;
+
+  print qq(<form method="get" action="soba_multi.cgi">\n);
+#   print qq(Select a datatype to display.<br/>\n);
+# UNDO for biggo
+#   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+#   my @datatypes = qw( anatomy disease go lifestage phenotype );
+#   foreach my $datatype (@datatypes) {
+#     my $checked = '';
+#     if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
+#     print qq(<input type="radio" name="radio_datatype" id="radio_datatype" value="$datatype" $checked onclick="setAutocompleteListeners();" >$datatype</input><br/>\n); }
+#   print qq(<br/>);
+
+  print qq(<input type="hidden" name="radio_datatype" id="radio_datatype" value="biggo"\n);
+
+  print << "EndOfText";
+    <B>Choose a gene <!--<span style="color: red;">*</span>--></B>
+    <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
+      <span id="containerForcedGeneAutoComplete">
+        <div id="forcedGeneAutoComplete">
+              <input size="50" name="autocompleteValue" id="input_Gene" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
+              <div id="forcedGeneContainer"></div>
+        </div></span><br/><br/>
+EndOfText
+  print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
+  print qq(<input name="reset" type="reset" value="Reset Gene Input" onclick="document.getElementById('input_Gene').value='';"><br/>\n);
+
+  print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
+  my %taxons;
+#   print qq(<input type="checkbox" class="taxon_all" name="taxon_all" id="taxon_all" value="all" checked="checked">All Taxons</input><br/>\n);
+
+  my @priorityTaxons = ( 'Homo sapiens', 'Arabidopsis thaliana', 'Caenorhabditis elegans', 'Danio rerio', 'Drosophila melanogaster', 'Escherichia coli K-12', 'Mus musculus', 'Rattus norvegicus', 'Saccharomyces cerevisiae S288c' );
+  my %priorityTaxons;
+  foreach my $taxon (@priorityTaxons) {
+    $priorityTaxons{$taxon}++;
+    my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+    print qq(<input type="checkbox" class="taxon" name="$taxon" id="$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
+  }
+  print qq(<br/>);
+  print qq(<br/>Additional species.<br/>);
+
+  while (scalar (@{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} }) > 0) {
+    my $taxon      = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+    my $someNumber = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+    next if ($priorityTaxons{$taxon});	# already entered before
+    my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+    $taxons{qq(<input type="checkbox" class="taxon" name="$taxon" id="$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
+  }
+  foreach my $taxon (sort keys %taxons) {
+    print $taxon;
+  }
+
+  print qq(</form>\n);
+
+  print qq(</body></html>);
+} # sub pickOneGeneBiggoPage
 
 sub pickOneGenePage {
 #   print "Content-type: text/html\n\n";
@@ -1470,10 +1565,10 @@ my $debugText = '';
 
 #   if ($processType eq 'source_gene') {
   my $geneOneId = '';
-#   unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/, (.*?),/; }		# autocomplete format from solr query
-#   unless ($geneOneId) {   ($geneOneId)   = $geneOneValue      =~ m/, (.*?),/; }		# autocomplete format from solr query
   unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/\( (.*?) \)/; $focusTermId = 'WB:' . $focusTermId; }		# autocomplete format from tazendra OA query
   unless ($geneOneId) {   ($geneOneId)   = $geneOneValue =~ m/\( (.*?) \)/;      $geneOneId   = 'WB:' . $geneOneId;   }		# autocomplete format from tazendra OA query
+  unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/, (.*?),/; }		# autocomplete format from solr query for biggo only
+  unless ($geneOneId) {   ($geneOneId)   = $geneOneValue      =~ m/, (.*?),/; }		# autocomplete format from solr query for biggo only
 #   }
 
   my $goslimButtons = '<a href="http://geneontology.org/docs/go-subset-guide/" target="_blank">Alliance Slim terms</a> in graph:<br/>';
