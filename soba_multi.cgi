@@ -1565,10 +1565,10 @@ my $debugText = '';
 
 #   if ($processType eq 'source_gene') {
   my $geneOneId = '';
-  unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/\( (.*?) \)/; $focusTermId = 'WB:' . $focusTermId; }		# autocomplete format from tazendra OA query
-  unless ($geneOneId) {   ($geneOneId)   = $geneOneValue =~ m/\( (.*?) \)/;      $geneOneId   = 'WB:' . $geneOneId;   }		# autocomplete format from tazendra OA query
   unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/, (.*?),/; }		# autocomplete format from solr query for biggo only
   unless ($geneOneId) {   ($geneOneId)   = $geneOneValue      =~ m/, (.*?),/; }		# autocomplete format from solr query for biggo only
+  unless ($focusTermId) { if ($autocompleteValue =~ m/\( (.*?) \)/) { $focusTermId = 'WB:' . $1; } }		# autocomplete format from tazendra OA query
+  unless ($geneOneId) {   if ($geneOneValue =~ m/\( (.*?) \)/)      { $geneOneId   = 'WB:' . $1; } }		# autocomplete format from tazendra OA query
 #   }
 
   my $goslimButtons = '<a href="http://geneontology.org/docs/go-subset-guide/" target="_blank">Alliance Slim terms</a> in graph:<br/>';
