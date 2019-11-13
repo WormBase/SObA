@@ -441,6 +441,9 @@ EndOfText
     print qq(</div>\n);
     print qq(<br/><br/>\n);
   }
+  print qq(<input type="hidden" name="filterForLcaFlag" value="1">\n);
+  print qq(<input type="hidden" name="filterLongestFlag" value="1">\n);
+  print qq(<input type="hidden" name="showControlsFlag" value="0">\n);
   print qq(<input type="submit" name="action" value="Graph Two Genes" ></input><br/><br/>\n);
   print qq(<input name="reset" type="reset" value="Reset Gene Inputs" onclick="document.getElementById('input_GeneOne').value=''; document.getElementById('input_GeneTwo').value=''; document.getElementById('messageGeneOne').innerHTML =''; document.getElementById('messageGeneTwo').innerHTML ='';"><br/>\n);
   print qq(</form>\n);
@@ -505,6 +508,9 @@ EndOfText
               <div id="forcedGeneContainer"></div>
         </div></span><br/><br/>
 EndOfText
+  print qq(<input type="hidden" name="filterForLcaFlag" value="1">\n);
+  print qq(<input type="hidden" name="filterLongestFlag" value="1">\n);
+  print qq(<input type="hidden" name="showControlsFlag" value="0">\n);
   print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
   print qq(<input name="reset" type="reset" value="Reset Gene Input" onclick="document.getElementById('input_Gene').value='';"><br/>\n);
 
@@ -603,6 +609,9 @@ EndOfText
               <div id="forcedGeneContainer"></div>
         </div></span><br/><br/>
 EndOfText
+  print qq(<input type="hidden" name="filterForLcaFlag" value="1">\n);
+  print qq(<input type="hidden" name="filterLongestFlag" value="1">\n);
+  print qq(<input type="hidden" name="showControlsFlag" value="0">\n);
   print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
   print qq(<input name="reset" type="reset" value="Reset Gene Input" onclick="document.getElementById('input_Gene').value='';"><br/>\n);
 
