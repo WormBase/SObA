@@ -722,6 +722,7 @@ EndOfText
   print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
   print qq(<input name="reset" type="reset" value="Reset Gene Input" onclick="document.getElementById('input_Gene').value='';"><br/>\n);
 
+  print qq(<div style="display:none">);
   print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
   my %taxons;
 #   print qq(<input type="checkbox" class="taxon_all" name="taxon_all" id="taxon_all" value="all" checked="checked">All Taxons</input><br/>\n);
@@ -746,6 +747,7 @@ EndOfText
   foreach my $taxon (sort keys %taxons) {
     print $taxon;
   }
+  print qq(</div>);
 
   print qq(</form>\n);
 
@@ -1999,6 +2001,7 @@ my $debugText = '';
         
         cyPhenGraph.on('tap', function(e){
           if( e.cyTarget === cyPhenGraph ){
+            document.getElementById("radio_whichgenehighlight_all").checked = true;	// when removing faded from all nodes, set radio for whichgenehighlight
             cyPhenGraph.elements().removeClass('faded');
           }
         });
