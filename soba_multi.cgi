@@ -2290,7 +2290,8 @@ console.log('jsonUrl ' + jsonUrl);
       maxDepthElement.selectedIndex = maxOption - 1;
       if (event.data.name === 'maxDepth') { maxDepthElement.value = userSelectedValue; }
 //       if (userSelectedValue <= maxDepthElement.value) { maxDepthElement.value = userSelectedValue; }
-//       document.getElementById("radio_whichgenehighlight_all").checked = true;
+      document.getElementById("radio_whichgenehighlight_all").checked = true;	// when json loads new values, default to 'All nodes' highlighted radio option
+      cyPhenGraph.elements().removeClass('faded');				// when json loads new values, no nodes should be faded
       document.getElementById("radio_pietype_totalcount").checked = true;	// when json loads new values, the graph changes to default options for pietype and weighted, so change radio as well
       document.getElementById("radio_weighted").checked = true;
     }
