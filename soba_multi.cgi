@@ -421,6 +421,7 @@ EndOfText
     my $div_display = ''; if ($fieldCount eq 'Two') { $div_display = 'style="display: none"'; }
     print qq(<div id="controls$fieldCount" $div_display>\n);
     print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
+    print qq(<select>\n);
     my %taxons;
     
     my @priorityTaxons = ( 'Homo sapiens', 'Arabidopsis thaliana', 'Caenorhabditis elegans', 'Danio rerio', 'Drosophila melanogaster', 'Escherichia coli K-12', 'Mus musculus', 'Rattus norvegicus', 'Saccharomyces cerevisiae S288c' );
@@ -428,21 +429,25 @@ EndOfText
     foreach my $taxon (@priorityTaxons) {
       $priorityTaxons{$taxon}++;
       my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
-      print qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
+#       print qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
+      print qq(<option value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</option>\n);
     }
-    print qq(<br/>);
-    print qq(<br/>Additional species.<br/>);
+#     print qq(<br/>);
+#     print qq(<br/>Additional species.<br/>);
     
     while (scalar (@{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} }) > 0) {
       my $taxon      = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
       my $someNumber = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
       next if ($priorityTaxons{$taxon});	# already entered before
       my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
-      $taxons{qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
+      $taxons{$taxon} = $taxon_plus;
+#       $taxons{qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
     }
     foreach my $taxon (sort keys %taxons) {
-      print $taxon;
+      print qq(<option value="$taxons{$taxon}" onclick="setAutocompleteListeners();">$taxon</option>\n);
+#       print $taxon;
     }
+    print qq(</select>\n);
     print qq(</div>\n);
     print qq(<br/><br/>\n);
   }
@@ -508,16 +513,20 @@ EndOfText
 EndOfText
 # next to skip / UNDO for biggo / species selection
     
-    my $div_display = ''; if ($fieldCount eq 'Two') { $div_display = 'style="display: none"'; }
+    my $div_display = ''; # if ($fieldCount eq 'Two') { $div_display = 'style="display: none"'; }
     print qq(<div id="controls$fieldCount" $div_display>\n);
-    print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
+    print qq(<br/>Prioritize search by selecting a species.<br/>\n);
+    print qq(<select id="taxon${fieldCount}">\n);
+    print qq(<option value="All" onclick="setAutocompleteListeners();">All</option>\n);
     
     my @priorityTaxons = ( 'Homo sapiens', 'Arabidopsis thaliana', 'Caenorhabditis elegans', 'Danio rerio', 'Drosophila melanogaster', 'Escherichia coli K-12', 'Mus musculus', 'Rattus norvegicus', 'Saccharomyces cerevisiae S288c' );
     my %priorityTaxons;
     foreach my $taxon (@priorityTaxons) {
       $priorityTaxons{$taxon}++;
       my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
-      print qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
+      print qq(<option value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</option>\n);
+# to use checkboxes instead of dropdown
+#       print qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
     }
     print qq(<br/>);
     print qq(<br/>Additional species.<br/>);
@@ -527,11 +536,16 @@ EndOfText
       my $someNumber = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
       next if ($priorityTaxons{$taxon});	# already entered before
       my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
-      $taxons{qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
+      $taxons{$taxon} = $taxon_plus;
+# to use checkboxes instead of dropdown
+#       $taxons{qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
     }
     foreach my $taxon (sort keys %taxons) {
-      print $taxon;
+      print qq(<option value="$taxons{$taxon}" onclick="setAutocompleteListeners();">$taxon</option>\n);
+# to use checkboxes instead of dropdown
+#       print $taxon;
     }
+    print qq(</select>\n);
     print qq(</div>\n);
     print qq(<br/><br/>\n);
   }
@@ -592,14 +606,11 @@ EndOfText
               <div id="forcedGeneContainer"></div>
         </div></span><br/><br/>
 EndOfText
-  print qq(<input type="hidden" name="filterForLcaFlag" value="1">\n);
-  print qq(<input type="hidden" name="filterLongestFlag" value="1">\n);
-  print qq(<input type="hidden" name="showControlsFlag" value="0">\n);
-  print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
-  print qq(<input name="reset" type="reset" value="Reset Gene Input" onclick="document.getElementById('input_Gene').value='';"><br/>\n);
 
-  print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
+  print qq(Prioritize search by selecting a species.<br/>\n);
   my %taxons;
+  print qq(<select id="taxon_all">\n);
+  print qq(<option value="All" onclick="setAutocompleteListeners();">All</option>\n);
 #   print qq(<input type="checkbox" class="taxon_all" name="taxon_all" id="taxon_all" value="all" checked="checked">All Taxons</input><br/>\n);
 
   my @priorityTaxons = ( 'Homo sapiens', 'Arabidopsis thaliana', 'Caenorhabditis elegans', 'Danio rerio', 'Drosophila melanogaster', 'Escherichia coli K-12', 'Mus musculus', 'Rattus norvegicus', 'Saccharomyces cerevisiae S288c' );
@@ -607,7 +618,9 @@ EndOfText
   foreach my $taxon (@priorityTaxons) {
     $priorityTaxons{$taxon}++;
     my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
-    print qq(<input type="checkbox" class="taxon" name="$taxon" id="$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
+    print qq(<option value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</option>\n);
+# to use checkboxes instead of dropdown
+#     print qq(<input type="checkbox" class="taxon" name="$taxon" id="$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
   }
   print qq(<br/>);
   print qq(<br/>Additional species.<br/>);
@@ -617,12 +630,22 @@ EndOfText
     my $someNumber = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
     next if ($priorityTaxons{$taxon});	# already entered before
     my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
-    $taxons{qq(<input type="checkbox" class="taxon" name="$taxon" id="$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
+    $taxons{$taxon} = $taxon_plus;
+# to use checkboxes instead of dropdown
+#     $taxons{qq(<input type="checkbox" class="taxon" name="$taxon" id="$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
   }
   foreach my $taxon (sort keys %taxons) {
+    print qq(<option value="$taxons{$taxon}" onclick="setAutocompleteListeners();">$taxon</option>\n);
+# to use checkboxes instead of dropdown
     print $taxon;
   }
 
+  print qq(</select><br/><br/>\n);
+  print qq(<input type="hidden" name="filterForLcaFlag" value="1">\n);
+  print qq(<input type="hidden" name="filterLongestFlag" value="1">\n);
+  print qq(<input type="hidden" name="showControlsFlag" value="0">\n);
+  print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
+  print qq(<input name="reset" type="reset" value="Reset Gene Input" onclick="document.getElementById('input_Gene').value='';"><br/>\n);
   print qq(</form>\n);
 
   print qq(</body></html>);
@@ -2388,7 +2411,7 @@ $analyzePairsText
       </div>
       <div id="evidencetypephenotype" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etp"  id="radio_etp_all"           value="radio_etp_all"           $checked_radio_etp_all >all evidence types</input><br/>
-        <input type="radio" name="radio_etp"  id="radio_etp_onlyrnai"      value="radio_etp_onlyrnai"      $checked_radio_etp_onlyrnai >only rnai</input><br/>
+        <input type="radio" name="radio_etp"  id="radio_etp_onlyrnai"      value="radio_etp_onlyrnai"      $checked_radio_etp_onlyrnai >only RNAi</input><br/>
         <input type="radio" name="radio_etp"  id="radio_etp_onlyvariation" value="radio_etp_onlyvariation" $checked_radio_etp_onlyvariation >only variation</input><br/><br/>
       </div>
       <div id="evidencetypedisease" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">

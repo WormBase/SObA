@@ -79,12 +79,17 @@ function setAutocompleteListeners() {                              // add listen
     else if (whichPage === 'pickOneGeneBiggoPage') {
         var field = 'Gene';
         settingAutocompleteListeners = function() {
-            var taxons = [];
-            var arrCheckbox = document.getElementsByClassName("taxon");
-            for (var i = 0; arrCheckbox[i]; i++) {
-              if (arrCheckbox[i].checked) {
-                 taxons.push('taxon_label:"'+ arrCheckbox[i].value + '"'); } }
-            var taxonFq = taxons.join('+OR+');
+// to select from checkboxes instead of drop down
+//             var taxons = [];
+//             var arrCheckbox = document.getElementsByClassName("taxon");
+//             for (var i = 0; arrCheckbox[i]; i++) {
+//               if (arrCheckbox[i].checked) {
+//                  taxons.push('taxon_label:"'+ arrCheckbox[i].value + '"'); } }
+//             var taxonFq = taxons.join('+OR+');
+   
+            var taxonFq = '';
+            if (document.getElementById("taxon_all").value === 'All') { taxonFq = ''; }
+              else { taxonFq =  'taxon_label:"' + document.getElementById("taxon_all").value + '"'; }
             var datatypeValue = 'biggo';
             var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  // for biggo
             var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
@@ -110,19 +115,23 @@ function setAutocompleteListeners() {                              // add listen
                 forcedOAC: forcedOAC
             }
         }();
-    } // if (whichPage === 'pickOneGenePage')
+    } // else if (whichPage === 'pickOneGeneBiggoPage')
     else if (whichPage === 'pickTwoGenesBiggoPage') {
         var autocompleteFieldsArray = ['One', 'Two'];
         for (var j = 0; j < autocompleteFieldsArray.length; j++) {     // for each field to autocomplete
             var fieldCount = autocompleteFieldsArray[j];
             var field = 'Gene' + fieldCount;
             settingAutocompleteListeners = function() {
-                var taxons = [];
-                var arrCheckbox = document.getElementsByClassName("taxon" + fieldCount);
-                for (var i = 0; arrCheckbox[i]; i++) {
-                  if (arrCheckbox[i].checked) {
-                     taxons.push('taxon_label:"'+ arrCheckbox[i].value + '"'); } }
-                var taxonFq = taxons.join('+OR+');
+// to select from checkboxes instead of drop down
+//                 var taxons = [];
+//                 var arrCheckbox = document.getElementsByClassName("taxon" + fieldCount);
+//                 for (var i = 0; arrCheckbox[i]; i++) {
+//                   if (arrCheckbox[i].checked) {
+//                      taxons.push('taxon_label:"'+ arrCheckbox[i].value + '"'); } }
+//                 var taxonFq = taxons.join('+OR+');
+                var taxonFq = '';
+                if (document.getElementById("taxon" + fieldCount).value === 'All') { taxonFq = ''; }
+                  else { taxonFq =  'taxon_label:"' + document.getElementById("taxon" + fieldCount).value + '"'; }
                 var datatypeValue = 'biggo';
                 var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  // for biggo
                 var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
@@ -149,7 +158,7 @@ function setAutocompleteListeners() {                              // add listen
                 }
             }();
         } // for (var j = 0; j < autocompleteFieldsArray.length; j++)      // for each field to autocomplete
-    } // if (whichPage === 'pickTwoGenesPage')
+    } // else if (whichPage === 'pickTwoGenesBiggoPage')
     else if (whichPage === 'pickTwoGenesPage') {
         var autocompleteFieldsArray = ['One', 'Two'];
         for (var j = 0; j < autocompleteFieldsArray.length; j++) {     // for each field to autocomplete
@@ -201,7 +210,7 @@ function setAutocompleteListeners() {                              // add listen
                 }
             }();
         } // for (var j = 0; j < autocompleteFieldsArray.length; j++)      // for each field to autocomplete
-    } // if (whichPage === 'pickTwoGenesPage')
+    } // else if (whichPage === 'pickTwoGenesPage')
 
 
     // from http://stackoverflow.com/questions/1909441/jquery-keyup-delay
