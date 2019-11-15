@@ -939,10 +939,9 @@ sub calculateNodesAndEdges {
       if ($nodes[$index]{'lbl'}) { $lbl = $nodes[$index]{'lbl'}; }
       next unless ($id);
 # UNDO THIS
-#       $lbl = "$id - $lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
+#       $lbl = "$id - $lbl";                                          # for debugging to find IDs in graph
       $nodes{$id}{label} = $lbl;
-# remove this later if it didn't break something to remove it
-#       next unless ($transNodes{$id});
+      next unless ($transNodes{$id});					# skip adding node if it's not in transitivity (otherwise, e.g. biggo WBGene00002992 gets GO:0031224 is LCA of GO:0016020 and GO:0016021)
 # #       $lbl =~ s/ /<br\/>/g;                                                # replace spaces with html linebreaks in graph for more-square boxes
 #       my $label = "$lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
 #       if ($nodes{$id}) { 					# if there are annotation counts to variation and/or rnai, add them to the box
@@ -960,6 +959,7 @@ sub calculateNodesAndEdges {
 #       }
 # print qq(ID $id LBL $lbl E\n);
       if ($id && $lbl) { 
+# if ( ($nodeIdAnnotated eq 'GO:0016021') || ($nodeIdAnnotated eq 'GO:0016020') ) { print qq(ADDING $nodeIdAnnotated TO $id LBL $lbl\n); }
         $nodesAll{$nodeIdAnnotated}{$id} = $lbl;
 # print qq(nodesAll $nodeIdAnnotated ID $id LBL $lbl E\n);
       }
@@ -985,6 +985,8 @@ sub calculateNodesAndEdges {
           my $lcaHashref = &calculateLCA($ph1, $ph2);
           my %lca = %$lcaHashref;
           foreach my $lca (sort keys %lca) {
+# DEBUG
+# if ($lca eq 'GO:0031224') { print qq(GO:0031224 is LCA of $ph1 and $ph2\n); }
 #             $url = "http://www.wormbase.org/species/all/go_term/$lca";                              # URL to link to wormbase page for object
             $allLca{$lca}++;
             unless ($annotationNodeidWhichgene{'annot'}{$lca}) { 					# only add lca nodes that are not annotated terms
@@ -1003,6 +1005,8 @@ sub calculateNodesAndEdges {
     while (scalar keys %{ $edgesPtcCopy{$parent} } > 0) {		# while parent has children
       foreach my $child (sort keys %{ $edgesPtcCopy{$parent} }) {	# each child of parent
         if ($allLca{$child} || $annotationNodeidWhichgene{'annot'}{$child}) { 			# good node, keep edge when child is an lca or annotated term
+# DEBUG
+# if ($child eq 'GO:0031224') { print qq(CHILD $child allLca $allLca{$child} annotationNodeidWhichgene $annotationNodeidWhichgene{'annot'}{$child} END\n); }
             delete $edgesPtcCopy{$parent}{$child};			# remove from %edgesPtc, does not need to be checked further
             push @parentNodes, $child;					# child is a good node, add to parent list to check its children
             $edgesLca{$parent}{$child}++; }				# add parent-child edge to final graph
@@ -1637,7 +1641,7 @@ my $debugText = '';
 # $debugText .= "DATATYPE $datatype E<br>\n"; 
   if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
 # $debugText .= "IN DATATYPE $datatype E<br>\n"; 
-         $fakeRootFlag = 0; $filterLongestFlag = 1; $filterForLcaFlag = 1; $maxNodes = 0; $maxDepth = 0;
+#          $fakeRootFlag = 0; $filterLongestFlag = 1; $filterForLcaFlag = 1; $maxNodes = 0; $maxDepth = 0;	# not sure why it was doing this
          push @roots, "GO:0008150"; push @roots, "GO:0005575"; push @roots, "GO:0003674";
          $checked_root_bp = 'checked="checked"'; $checked_root_cc = 'checked="checked"'; $checked_root_mf = 'checked="checked"';
 # not sure why was doing this
@@ -2427,18 +2431,26 @@ sub calculateLCA {						# find all lowest common ancestors
   my @terms = ( $ph1, $ph2 );
   my %amountInBoth;
   my %inBoth;							# get all nodes that are in both sets
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(HERE\n); }
   foreach my $annotTerm (@terms) {
     foreach my $nodeIdAny (sort keys %{ $nodesAll{$annotTerm} }) {
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(annotTerm $annotTerm has nodesAll $nodeIdAny\n); }
       $amountInBoth{$nodeIdAny}++; } }
-  foreach my $term (sort keys %amountInBoth) { if ($amountInBoth{$term} > 1) { $inBoth{$term}++; } }
+  foreach my $term (sort keys %amountInBoth) { if ($amountInBoth{$term} > 1) { $inBoth{$term}++; 
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(term $term inBoth\n); }
+} }
   %ancestorNodes = ();
   foreach my $annotTerm (@terms) {
     foreach my $child (sort keys %{ $edgesAll{$annotTerm} }) {
       if ($inBoth{$child}) {
-        foreach my $parent (sort keys %{ $edgesAll{$annotTerm}{$child} }) { $ancestorNodes{$parent}++; } } } }
+        foreach my $parent (sort keys %{ $edgesAll{$annotTerm}{$child} }) { $ancestorNodes{$parent}++; 
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(parent $parent in edgesAll and inBoth for child $child stored in ancestorNodes\n); }
+} } } }
   my %lca;
   foreach my $bothNode (sort keys %inBoth) {
-    unless ($ancestorNodes{$bothNode}) { $lca{$bothNode}++; }
+    unless ($ancestorNodes{$bothNode}) { $lca{$bothNode}++; 
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(in inBoth and not in ancestorNodes, therefore LCA $bothNode\n); }
+}
   }
   return \%lca;
 } # sub calculateLCA
