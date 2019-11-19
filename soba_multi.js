@@ -47,7 +47,7 @@ function setAutocompleteListeners() {                              // add listen
 //             var sUrl = cgiUrl + "?action=autocompleteXHR&taxonFq=" + taxonFq + "&field=" + field + "&";   // ajax calls need curator and datatype
 //             var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  // good until 2019 11 01
 //             var sUrl = cgiUrl + "?action=autocompleteTazendraXHR&objectType=gene&";  	// to try to get from tazendra OA through cgi
-            var sUrl = "http://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&";  	// to try to get from tazendra OA
+            var sUrl = "https://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&";  	// to try to get from tazendra OA
             var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
             oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
             oDS.responseSchema = {                                 // Define the schema of the delimited results
@@ -181,7 +181,7 @@ function setAutocompleteListeners() {                              // add listen
                     datatypeValue = radioDatatypeElements[i].value; } }
 //                 var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";
 //                 var sUrl = cgiUrl + "?action=autocompleteTazendraXHR&objectType=gene&";  	// to try to get from tazendra OA through cgi
-                var sUrl = "http://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&";  	// to try to get from tazendra OA
+                var sUrl = "https://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&";  	// to try to get from tazendra OA
                 var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
                 oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
                 oDS.responseSchema = {                                 // Define the schema of the delimited results
