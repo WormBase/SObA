@@ -256,13 +256,20 @@ sub validateListTermsQvalue {
 sub getDatatypeFromObject {
   my ($focusTermId) = @_;
   my ($identifierType) = $focusTermId =~ m/^(\w+):/;
+  my $lcIdentifierType = lc($identifierType);
   my %idToDatatype;
+  $idToDatatype{"wbbt"}        = "anatomy";
+  $idToDatatype{"doid"}        = "disease";
+  $idToDatatype{"go"}          = "go";
+  $idToDatatype{"wbls"}        = "lifestage";
+  $idToDatatype{"wbphenotype"} = "phenotype";
   $idToDatatype{"WBbt"}        = "anatomy";
   $idToDatatype{"DOID"}        = "disease";
   $idToDatatype{"GO"}          = "go";
   $idToDatatype{"WBls"}        = "lifestage";
   $idToDatatype{"WBPhenotype"} = "phenotype";
   if ($idToDatatype{$identifierType}) { return $idToDatatype{$identifierType}; }
+    elsif ($idToDatatype{$lcIdentifierType}) { return $idToDatatype{$lcIdentifierType}; }
     else { return "$focusTermId"; }
 } # sub getSolrUrl
 
