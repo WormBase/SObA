@@ -44,8 +44,10 @@ function setAutocompleteListeners() {                              // add listen
             for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
               if (radioDatatypeElements[i].checked) {
                 datatypeValue = radioDatatypeElements[i].value; } }
-            var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  
 //             var sUrl = cgiUrl + "?action=autocompleteXHR&taxonFq=" + taxonFq + "&field=" + field + "&";   // ajax calls need curator and datatype
+//             var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  // good until 2019 11 01
+//             var sUrl = cgiUrl + "?action=autocompleteTazendraXHR&objectType=gene&";  	// to try to get from tazendra OA through cgi
+            var sUrl = "https://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&";  	// to try to get from tazendra OA
             var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
             oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
             oDS.responseSchema = {                                 // Define the schema of the delimited results
@@ -59,8 +61,10 @@ function setAutocompleteListeners() {                              // add listen
             var containerElement = document.getElementById(forcedOrFree + field + "Container");
             var forcedOAC = new YAHOO.widget.AutoComplete(inputElement, containerElement, oDS);
             forcedOAC.queryQuestionMark = false;                   // don't add a ? to the sUrl query since it's been built with some other values
+            forcedOAC.queryDelay = 0.1;                   	   // add a delay to wait for user to stop typing
             forcedOAC.maxResultsDisplayed = 500;
             forcedOAC.forceSelection = true;
+            forcedOAC.generateRequest = function(sQuery) { return "userValue=" + sQuery ; }; 	// instead of sending 'query' to form, use 'userValue'
             forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelect);
 // Don't needs this because don't need action on these, if it was necessary, would have to create functions like in the OA
 //             forcedOAC.selectionEnforceEvent.subscribe(onAutocompleteSelectionEnforce);
@@ -72,6 +76,89 @@ function setAutocompleteListeners() {                              // add listen
             }
         }();
     } // if (whichPage === 'pickOneGenePage')
+    else if (whichPage === 'pickOneGeneBiggoPage') {
+        var field = 'Gene';
+        settingAutocompleteListeners = function() {
+// to select from checkboxes instead of drop down
+//             var taxons = [];
+//             var arrCheckbox = document.getElementsByClassName("taxon");
+//             for (var i = 0; arrCheckbox[i]; i++) {
+//               if (arrCheckbox[i].checked) {
+//                  taxons.push('taxon_label:"'+ arrCheckbox[i].value + '"'); } }
+//             var taxonFq = taxons.join('+OR+');
+   
+            var taxonFq = '';
+            if (document.getElementById("taxon_all").value === 'All') { taxonFq = ''; }
+              else { taxonFq =  'taxon_label:"' + document.getElementById("taxon_all").value + '"'; }
+            var datatypeValue = 'biggo';
+            var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  // for biggo
+            var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
+            oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
+            oDS.responseSchema = {                                 // Define the schema of the delimited results
+                recordDelim: "\n",
+                fieldDelim: "\t"
+            };
+            oDS.maxCacheEntries = 5;                               // Enable caching
+
+            var forcedOrFree = "forced";
+            var inputElement = document.getElementById('input_'+field);
+            var containerElement = document.getElementById(forcedOrFree + field + "Container");
+            var forcedOAC = new YAHOO.widget.AutoComplete(inputElement, containerElement, oDS);
+            forcedOAC.queryQuestionMark = false;                   // don't add a ? to the sUrl query since it's been built with some other values
+            forcedOAC.queryDelay = 0.1;                   	   // add a delay to wait for user to stop typing
+            forcedOAC.maxResultsDisplayed = 500;
+            forcedOAC.forceSelection = true;
+            forcedOAC.generateRequest = function(sQuery) { return "userValue=" + sQuery ; }; 	// instead of sending 'query' to form, use 'userValue'
+            forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelect);
+            return {
+                oDS: oDS,
+                forcedOAC: forcedOAC
+            }
+        }();
+    } // else if (whichPage === 'pickOneGeneBiggoPage')
+    else if (whichPage === 'pickTwoGenesBiggoPage') {
+        var autocompleteFieldsArray = ['One', 'Two'];
+        for (var j = 0; j < autocompleteFieldsArray.length; j++) {     // for each field to autocomplete
+            var fieldCount = autocompleteFieldsArray[j];
+            var field = 'Gene' + fieldCount;
+            settingAutocompleteListeners = function() {
+// to select from checkboxes instead of drop down
+//                 var taxons = [];
+//                 var arrCheckbox = document.getElementsByClassName("taxon" + fieldCount);
+//                 for (var i = 0; arrCheckbox[i]; i++) {
+//                   if (arrCheckbox[i].checked) {
+//                      taxons.push('taxon_label:"'+ arrCheckbox[i].value + '"'); } }
+//                 var taxonFq = taxons.join('+OR+');
+                var taxonFq = '';
+                if (document.getElementById("taxon" + fieldCount).value === 'All') { taxonFq = ''; }
+                  else { taxonFq =  'taxon_label:"' + document.getElementById("taxon" + fieldCount).value + '"'; }
+                var datatypeValue = 'biggo';
+                var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";  // for biggo
+                var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
+                oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
+                oDS.responseSchema = {                                 // Define the schema of the delimited results
+                    recordDelim: "\n",
+                    fieldDelim: "\t"
+                };
+                oDS.maxCacheEntries = 5;                               // Enable caching
+
+                var forcedOrFree = "forced";
+                var inputElement = document.getElementById('input_'+field);
+                var containerElement = document.getElementById(forcedOrFree + field + "Container");
+                var forcedOAC = new YAHOO.widget.AutoComplete(inputElement, containerElement, oDS);
+                forcedOAC.queryQuestionMark = false;                   // don't add a ? to the sUrl query since it's been built with some other values
+                forcedOAC.queryDelay = 0.1;                   	   // add a delay to wait for user to stop typing
+                forcedOAC.maxResultsDisplayed = 500;
+                forcedOAC.forceSelection = true;
+                forcedOAC.generateRequest = function(sQuery) { return "userValue=" + sQuery ; }; 	// instead of sending 'query' to form, use 'userValue'
+                forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelect);
+                return {
+                    oDS: oDS,
+                    forcedOAC: forcedOAC
+                }
+            }();
+        } // for (var j = 0; j < autocompleteFieldsArray.length; j++)      // for each field to autocomplete
+    } // else if (whichPage === 'pickTwoGenesBiggoPage')
     else if (whichPage === 'pickTwoGenesPage') {
         var autocompleteFieldsArray = ['One', 'Two'];
         for (var j = 0; j < autocompleteFieldsArray.length; j++) {     // for each field to autocomplete
@@ -92,7 +179,9 @@ function setAutocompleteListeners() {                              // add listen
                 for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
                   if (radioDatatypeElements[i].checked) {
                     datatypeValue = radioDatatypeElements[i].value; } }
-                var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";
+//                 var sUrl = cgiUrl + "?action=autocompleteXHR&datatype=" + datatypeValue + "&taxonFq=" + taxonFq + "&field=Gene&";
+//                 var sUrl = cgiUrl + "?action=autocompleteTazendraXHR&objectType=gene&";  	// to try to get from tazendra OA through cgi
+                var sUrl = "https://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&";  	// to try to get from tazendra OA
                 var oDS = new YAHOO.util.XHRDataSource(sUrl);          // Use an XHRDataSource
                 oDS.responseType = YAHOO.util.XHRDataSource.TYPE_TEXT; // Set the responseType
                 oDS.responseSchema = {                                 // Define the schema of the delimited results
@@ -106,8 +195,10 @@ function setAutocompleteListeners() {                              // add listen
                 var containerElement = document.getElementById(forcedOrFree + field + "Container");
                 var forcedOAC = new YAHOO.widget.AutoComplete(inputElement, containerElement, oDS);
                 forcedOAC.queryQuestionMark = false;                   // don't add a ? to the sUrl query since it's been built with some other values
+                forcedOAC.queryDelay = 0.1;                   	   // add a delay to wait for user to stop typing
                 forcedOAC.maxResultsDisplayed = 500;
                 forcedOAC.forceSelection = true;
+                forcedOAC.generateRequest = function(sQuery) { return "userValue=" + sQuery ; }; 	// instead of sending 'query' to form, use 'userValue'
                 forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelect);
 //                 if (fieldCount === 'One') {
 //                    forcedOAC.itemSelectEvent.subscribe(onAutocompleteItemSelectOne); }
@@ -118,8 +209,8 @@ function setAutocompleteListeners() {                              // add listen
                     forcedOAC: forcedOAC
                 }
             }();
-        } // for (var j = 0; j < autocompleteFieldsArray.length; j++) {     // for each field to autocomplete
-    } // if (whichPage === 'pickTwoGenesPage')
+        } // for (var j = 0; j < autocompleteFieldsArray.length; j++)      // for each field to autocomplete
+    } // else if (whichPage === 'pickTwoGenesPage')
 
 
     // from http://stackoverflow.com/questions/1909441/jquery-keyup-delay
@@ -133,6 +224,13 @@ function setAutocompleteListeners() {                              // add listen
 
 } // function setAutocompleteListeners()
 
+function radioDatatypeClick(whichPage) {
+  if (whichPage === 'TwoGenes') {
+    validateGeneDatatype('GeneOne');
+    validateGeneDatatype('GeneTwo'); }
+  console.log('clicked radio');
+} // function radioDatatypeClick('whichPage')
+
 function onAutocompleteItemSelect(oSelf , elItem) {          // if an item is highlighted from arrows or mouseover, populate obo
   var match = elItem[0]._sName.match(/input_(.*)/);             // get the key and value
   var field = match[1];
@@ -145,27 +243,65 @@ function onAutocompleteItemSelect(oSelf , elItem) {          // if an item is hi
       if (radioDatatypeElements[i].checked) {
         datatypeValue = radioDatatypeElements[i].value; } }
     var url = 'soba_multi.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&datatype=' + datatypeValue + '&autocompleteValue=' + value;
-    window.location = url; }
+//     window.location = url; 					// uncomment to load graph automatically
+  }
   else if (field === 'GeneOne') {
+    validateGeneDatatype('GeneOne');
     document.getElementById('controlsOne').style.display = 'none';
     document.getElementById('controlsTwo').style.display = ''; }
   else if (field === 'GeneTwo') {
-    var value = elItem[1].innerHTML;                              // get the selected value
     console.log('genetwo');
-    var geneOneValue = document.getElementById('input_GeneOne').value;
-    console.log('genetwo');
-    var datatypeValue = 'phenotype';
-    var radioDatatypeElements = document.getElementsByName("radio_datatype");
-    console.log('genetwo');
-    for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
-      if (radioDatatypeElements[i].checked) {
-        datatypeValue = radioDatatypeElements[i].value; } }
-    console.log('genetwo');
-    var url = 'soba_multi.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&datatype=' + datatypeValue + '&geneOneValue=' + geneOneValue + '&autocompleteValue=' + value;
-    console.log('genetwo');
-    console.log('genetwo: ' + url);
-    window.location = url; }
+    validateGeneDatatype('GeneTwo');
+
+// to automaticaly load graph on selection of gene two
+//     var geneOneValue = document.getElementById('input_GeneOne').value;
+//     var url = 'soba_multi.cgi?action=annotSummaryCytoscape&filterForLcaFlag=1&filterLongestFlag=1&showControlsFlag=0&datatype=' + datatypeValue + '&geneOneValue=' + geneOneValue + '&autocompleteValue=' + value;
+//     console.log('genetwo: ' + url);
+//     window.location = url; 					// uncomment to load graph automatically
+  }
 } // function onAutocompleteItemSelect(oSelf , elItem) 
+
+function validateGeneDatatype(whichGene) {
+  let datatypeValue = getSelectedDatatype();
+  let elMatch = document.getElementById('input_'+whichGene).value.match(/\( (.*?) \)/);
+  if (elMatch !== null) {
+    let geneId = 'WB:' + elMatch[1];
+    console.log('geneId: ' + geneId + ' datatype: ' + datatypeValue);
+    asyncCheckGeneDatatype(whichGene, geneId, datatypeValue); }
+} // function validateGeneDatatype(whichGene)
+
+function getSelectedDatatype() {
+  let datatypeValue = 'phenotype';
+  var radioDatatypeElements = document.getElementsByName("radio_datatype");
+  for (var i = 0, length = radioDatatypeElements.length; i < length; i++) {
+    if (radioDatatypeElements[i].checked) {
+      datatypeValue = radioDatatypeElements[i].value; } }
+  return datatypeValue;
+} // function getSelectedDatatype()
+
+function asyncCheckGeneDatatype(whichGene, geneId, datatypeValue) {
+  var callbacks = {
+      success : function (o) {                                  // Successful XHR response handler
+          if (o.responseText !== undefined) { 
+            if (o.responseText === 'no data') {
+              document.getElementById('message'+whichGene).style.color = 'red';
+              document.getElementById('message'+whichGene).innerHTML = o.responseText; }
+            else if (o.responseText === 'has data') {
+              document.getElementById('message'+whichGene).style.color = 'green';
+              document.getElementById('message'+whichGene).innerHTML = o.responseText; }
+            else {
+              document.getElementById('message'+whichGene).style.color = 'orange';
+              document.getElementById('message'+whichGene).innerHTML = 'unexpected response'; }
+// console.log('SUCCESS!');
+          } }, };
+//   value = convertDisplayToUrlFormat(value);                     // convert <newValue> to URL format by escaping characters
+//   var sUrl = cgiUrl + "?action=asyncTermInfo&field="+field+"&termid="+value;
+//   let sUrl = 'http://wobr2.caltech.edu:8080/solr/' + datatypeValue + '/select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' + geneId + '%22';		// CORS does not allow this nor localhost:8080
+  let sUrl = 'soba_multi.cgi?action=validateGeneDatatype&datatype=' + datatypeValue + '&gene=' + geneId; 
+console.log('send ' + sUrl);
+  YAHOO.util.Connect.asyncRequest('GET', sUrl, callbacks);      // Make the call to the server for term info data
+} // function function asyncTermInfo(field, value)
+//     http://wobr2.caltech.edu:8080/solr/phenotype/select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22WB:WBGene00003009%22
 
 // function asyncWbdescription(wbgene) {
 //   var callbacks = {
