@@ -2390,9 +2390,9 @@ $analyzePairsText
 
     <!--<tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g class="graph" transform="scale(1 1) rotate(0) translate(4 40)"> <polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /> <g class="node" style="fill:#ff0000;fill-opacity:1" transform="translate(0,-19.2)"> <path d="M 35.99863,-0.58027907 A 18,18 0 0 1 27.088325,15.178899 18,18 0 0 1 8.9846389,15.221349 18,18 0 0 1 5.2625201e-4,-0.49586946" transform="scale(1,-1)" /> </g> <path style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:1;stroke-dasharray:5, 2" d="m 36.07799,-18.703936 a 18,18 0 0 1 -9.000001,15.5884578 18,18 0 0 1 -17.9999999,-4e-7 18,18 0 0 1 -8.99999952,-15.5884574" /> </g> </svg></td><td valign="center">AGR Slim terms</td></tr>-->
 
-    <tr id="trAllianceSlimWithout" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"> <polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#9494ff;fill-opacity:1"><ellipse style="fill:#9494ff;fill-opacity:1" ry="18" rx="18" cy="-18" cx="18" stroke-dasharray="5,2" stroke="blue" fill="none" /></g></g></svg></td><td valign="center">Alliance Slim Without Direct Annotation</td></tr>
+    <tr id="trAllianceSlimWithout" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"> <polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#9494ff;fill-opacity:1"><ellipse style="fill:#9494ff;fill-opacity:1" ry="18" rx="18" cy="-18" cx="18" stroke-dasharray="5,2" stroke="blue" fill="none" /></g></g></svg></td><td valign="center">Inferred Alliance Slim Term</td></tr>
 
-    <tr id="trAllianceSlimWith" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"><polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#ffaaaa"><ellipse style="fill:#ffaaaa" ry="18" rx="18" cy="-18" cx="18" stroke="red" fill="none" /></g></g></svg></td><td valign="center">Alliance Slim With Direct Annotation</td></tr>
+    <tr id="trAllianceSlimWith" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"><polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#ffaaaa"><ellipse style="fill:#ffaaaa" ry="18" rx="18" cy="-18" cx="18" stroke="red" fill="none" /></g></g></svg></td><td valign="center">Enriched Alliance Slim Term</td></tr>
 
     </table></div>
     <form method="get" action="soba_biggo.cgi">
@@ -2561,6 +2561,8 @@ function togglePlusMinus(element) {
 }
 </script>
 EndOfText
+  my ($var, $wormbaseHeader) = &getHtmlVar($query, 'wormbaseHeader');
+  if ($wormbaseHeader eq 'false') { $cshlHeader = '<html><head><title>$title</title>'; }
 #   print qq(Content-type: text/html\n\n<html><head><title>Amigo testing</title>$javascript</head><body>\n); 
   print qq(Content-type: text/html\n\n$cshlHeader $javascript</head>\n); 
 }
