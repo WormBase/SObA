@@ -1736,7 +1736,8 @@ my $debugText = '';
     elsif ($datatype eq 'phenotype') {                   $jsonUrl .= '&radio_etp='  . $radio_etp;                             }
     elsif ($datatype eq 'disease') {                     $jsonUrl .= '&radio_etd='  . $radio_etd;                             }
     elsif ($datatype eq 'anatomy') {                     $jsonUrl .= '&radio_eta='  . $radio_eta;                             }
-  unless ($showControlsFlag) { $showControlsFlag = 0; }
+  if ($showControlsFlag) { $showControlsFlag = 1; }                     # to prevent injection of javascript through variable
+    else { $showControlsFlag = 0; }
   $jsonUrl .= "&showControlsFlag=$showControlsFlag";
   unless ($fakeRootFlag) { $fakeRootFlag = 0; }
   $jsonUrl .= "&fakeRootFlag=$fakeRootFlag";
