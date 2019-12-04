@@ -5,6 +5,7 @@
 
 use CGI;
 use strict;
+use HTML::Entities;                             # for untainting with encode_entities()
 use LWP::Simple;
 use LWP::UserAgent;
 use JSON;
@@ -1234,7 +1235,9 @@ sub getHtmlVar {
   } else { 
     my $oop = $query->param("$var");
     $$var = &untaint($oop);         
-    return ($var, $$var);           
+#     return ($var, $$var);           
+    my $encoded = encode_entities($$var);
+    return ($var, $encoded);
   } 
 } # sub getHtmlVar
 
