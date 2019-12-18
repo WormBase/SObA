@@ -376,7 +376,7 @@ sub pickTwoGenesPage {
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
-    <script type="text/javascript" src="../javascript/soba.js"></script>
+    <script type="text/javascript" src="javascript/soba.js"></script>
 EndOfText
 
 #   $header .= "<title>$title</title>\n";
@@ -482,7 +482,7 @@ sub pickTwoGenesBiggoPage {
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
-    <script type="text/javascript" src="../javascript/soba.js"></script>
+    <script type="text/javascript" src="javascript/soba.js"></script>
 EndOfText
   $header .= "</head>";
   $header .= '<body class="yui-skin-sam">';
@@ -583,7 +583,7 @@ sub pickOneGeneBiggoPage {
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
-    <script type="text/javascript" src="../javascript/soba.js"></script>
+    <script type="text/javascript" src="javascript/soba.js"></script>
 EndOfText
 
   $header .= "</head>";
@@ -686,7 +686,7 @@ sub pickOneGenePage {
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
     <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
-    <script type="text/javascript" src="../javascript/soba.js"></script>
+    <script type="text/javascript" src="javascript/soba.js"></script>
 EndOfText
 
   $header .= "</head>";
@@ -1782,10 +1782,10 @@ my $debugText = '';
 <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
 
 <!--<script src="/~azurebrd/javascript/cytoscape.min.js"></script>-->
-<script type="text/javascript" src="../javascript/cytoscape.min.js"></script>
+<script type="text/javascript" src="javascript/cytoscape.min.js"></script>
 
 <!--<script src="/~azurebrd/javascript/dagre.min.js"></script>-->
-<script type="text/javascript" src="../javascript/dagre.min.js"></script>
+<script type="text/javascript" src="javascript/dagre.min.js"></script>
 <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.1.2/cytoscape-dagre.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.js"></script>
