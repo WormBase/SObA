@@ -369,13 +369,13 @@ sub pickTwoGenesPage {
   $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
   $header .= <<"EndOfText";
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
     <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/fonts/fonts-min.css" />
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/yahoo-dom-event/yahoo-dom-event.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/autocomplete-min.js"></script>
     <script type="text/javascript" src="javascript/soba.js"></script>
 EndOfText
 
@@ -475,13 +475,13 @@ sub pickTwoGenesBiggoPage {
   $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
   $header .= <<"EndOfText";
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
     <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/fonts/fonts-min.css" />
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/yahoo-dom-event/yahoo-dom-event.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/autocomplete-min.js"></script>
     <script type="text/javascript" src="javascript/soba.js"></script>
 EndOfText
   $header .= "</head>";
@@ -576,13 +576,13 @@ sub pickOneGeneBiggoPage {
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
 
   $header .= <<"EndOfText";
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
     <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/fonts/fonts-min.css" />
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/yahoo-dom-event/yahoo-dom-event.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/autocomplete-min.js"></script>
     <script type="text/javascript" src="javascript/soba.js"></script>
 EndOfText
 
@@ -665,7 +665,7 @@ sub pickOneGenePage {
   $header .= "<title>$title</title>\n";
 
 #   $header .= '<link rel="stylesheet" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />';
-#   $header .= "<link rel=\"stylesheet\" type=\"text/css\" href=\"http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css\" />";
+#   $header .= "<link rel=\"stylesheet\" type=\"text/css\" href=\"https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css\" />";
 
   $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
@@ -679,13 +679,13 @@ sub pickOneGenePage {
 #     <script type="text/javascript" src="../yui/2.7.0/build/autocomplete/autocomplete-min.js"></script>
 #     <script type="text/javascript" src="../javascript/soba.js"></script>
   $header .= <<"EndOfText";
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
     <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/fonts/fonts-min.css" />
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/yahoo-dom-event/yahoo-dom-event.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/autocomplete-min.js"></script>
     <script type="text/javascript" src="javascript/soba.js"></script>
 EndOfText
 
