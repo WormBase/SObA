@@ -123,7 +123,7 @@ sub autocompleteTazendraXHR {
   my ($var, $words) = &getHtmlVar($query, 'query');
   ($var, my $objectType) = &getHtmlVar($query, 'objectType');
   if ($objectType eq 'gene') { 
-    my $url = 'http://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&userValue=' . $words;
+    my $url = 'https://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&userValue=' . $words;
     my $page_data = get $url;
     if ($page_data) { print qq($page_data\n); } }
 } # sub autocompleteTazendraXHR
@@ -370,7 +370,7 @@ sub pickTwoGenesPage {
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
   $header .= <<"EndOfText";
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
-    <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
@@ -476,7 +476,7 @@ sub pickTwoGenesBiggoPage {
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
   $header .= <<"EndOfText";
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
-    <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
@@ -577,7 +577,7 @@ sub pickOneGeneBiggoPage {
 
   $header .= <<"EndOfText";
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
-    <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
@@ -664,7 +664,7 @@ sub pickOneGenePage {
   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
   $header .= "<title>$title</title>\n";
 
-#   $header .= '<link rel="stylesheet" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />';
+#   $header .= '<link rel="stylesheet" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />';
 #   $header .= "<link rel=\"stylesheet\" type=\"text/css\" href=\"http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css\" />";
 
   $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
@@ -680,7 +680,7 @@ sub pickOneGenePage {
 #     <script type="text/javascript" src="../javascript/soba_multi.js"></script>
   $header .= <<"EndOfText";
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
-    <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
@@ -2544,7 +2544,7 @@ sub printHtmlFooter { print qq(</body></html>\n); }
 
 # sub printHtmlHeader { 
 #   my $javascript = << "EndOfText";
-# <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+# <script src="https://code.jquery.com/jquery-1.9.1.js"></script>
 # </script>
 # EndOfText
 #   print qq(Content-type: text/html\n\n$header $javascript<body>\n); 
@@ -2555,7 +2555,7 @@ sub printHtmlHeader {
   if ($title) { $cshlHeader =~ s/<title>(.*?)<\/title>/<title>$title<\/title>/; }
   $cshlHeader =~ s|<script src="https://www.wormbase.org/static/js/wormbase.min.js" type="text/javascript"></script>||;		# remove javascript to prevent popup text when hovering over nodes	# may not need to remove it
   my $javascript = << "EndOfText";
-<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="https://code.jquery.com/jquery-1.9.1.js"></script>
 <script type="text/javascript">
 function toggleShowHide(element) {
     document.getElementById(element).style.display = (document.getElementById(element).style.display == "none") ? "" : "none";
@@ -2720,7 +2720,7 @@ EndOfText
 sub cshlNew {
   my $title = shift;
   unless ($title) { $title = ''; }      # init title in case blank
-  my $page = get "http://tazendra.caltech.edu/~azurebrd/sanger/wormbaseheader/WB_header_footer.html";
+  my $page = get "https://tazendra.caltech.edu/~azurebrd/sanger/wormbaseheader/WB_header_footer.html";
 #  $page =~ s/href="\//href="http:\/\/www.wormbase.org\//g;
 #  $page =~ s/src="/src="http:\/\/www.wormbase.org/g;
   my ($header, $footer) = $page =~ m/^(.*?)\s+DIVIDER\s+(.*?)$/s;  # 2006 11 20    # get this from tazendra's script result.
