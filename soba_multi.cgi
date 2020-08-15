@@ -73,6 +73,7 @@ my $json = JSON->new->allow_nonref;
 my $query = new CGI;
 # my $base_solr_url = "http://localhost:8080/solr/$top_datatype/";		# big geneontology golr server
 my $base_solr_url = "http://localhost:8080/solr/";		# big geneontology golr server
+# my $base_solr_url = "http://131.215.12.202:8080/solr/";		# 2020 03 27 - changing this for Raymond
 
 
 my %paths;	# finalpath => array of all (array of nodes of paths that end)
@@ -1860,7 +1861,7 @@ my $debugText = '';
         \$('#evidencetypeanatomy').show(); }
     var cyPhenGraph = window.cyPhenGraph = cytoscape({
       container: document.getElementById('cyPhenGraph'),
-      layout: { name: 'dagre', padding: 10, nodeSep: 5 },
+      layout: { name: 'dagre', padding: 10, nodeSep: 1, edgeSep: 1, rankSep: 5 },
       style: cytoscape.stylesheet()
         .selector('node')
           .css({
