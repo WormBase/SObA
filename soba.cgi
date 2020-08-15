@@ -1860,7 +1860,7 @@ my $debugText = '';
         \$('#evidencetypeanatomy').show(); }
     var cyPhenGraph = window.cyPhenGraph = cytoscape({
       container: document.getElementById('cyPhenGraph'),
-      layout: { name: 'dagre', padding: 10, nodeSep: 5 },
+      layout: { name: 'dagre', padding: 10, nodeSep: 1, edgeSep: 1, rankSep: 5 },
       style: cytoscape.stylesheet()
         .selector('node')
           .css({
