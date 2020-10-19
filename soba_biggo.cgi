@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl
 
 # partially cleaned up amigo.cgi from 12.204 to only produce SObA  2016 12 14
 
@@ -16,20 +16,50 @@
 
 # ZK512.8
 
+# let-4 
+
+# WBbt:0006817                0.02
+# WBbt:0006814                0.02
+# WBbt:0003927                0.02
+# WBbt:0006976                0.02
+# WBbt:0004096                0.02
+# WBbt:0005664                0.02
+# WBbt:0003827                0.033
+# WBbt:0003826                0.033
+# WBbt:0007808                0.033
+# WBbt:0007807                0.033
+# WBbt:0005668                0.033
+# WBbt:0008434            0.033
+# WBbt:0008433            0.033
+# WBbt:0005661                0.033
+# WBbt:0005465        0.036
+# WBbt:0005448            0.05
+# WBbt:0005835                0.084
+# WBbt:0006828                0.087
+# 
+# 
+# GO:0061458    0.07
+# GO:0048569    0.07
+# GO:0043632    0.072
+# GO:0007568    0.072
+# GO:0030163    0.099
+
+# get gene list from 
+# http://wobrbig.caltech.edu:8080/solr/select?qt=standard&indent=on&wt=json&version=2.2&fl=id&start=0&rows=100000&q=document_category:bioentity&fq=taxon:%22NCBITaxon:9606%22
 
 
 use CGI;
 use strict;
-use HTML::Entities;                             # for untainting with encode_entities()
+use HTML::Entities;				# for untainting with encode_entities()
 use LWP::Simple;
 use LWP::UserAgent;
 use JSON;
 use Tie::IxHash;                                # allow hashes ordered by item added
 use Net::Domain qw(hostname hostfqdn hostdomain);
-
-
-
+use URI::Encode qw(uri_encode uri_decode);
 use Storable qw(dclone);			# copy hash of hashes
+use POSIX;
+
 
 use Time::HiRes qw( time );
 my $startTime = time; my $prevTime = time;
@@ -38,21 +68,24 @@ $prevTime  =~ s/(\....).*$/$1/;
 
 my $hostname = hostname();
 
+my ($cshlHeader, $cshlFooter) = &cshlNew();
+
 
 # my $top_datatype = 'phenotype';
 my $json = JSON->new->allow_nonref;
 my $query = new CGI;
 # my $base_solr_url = "http://localhost:8080/solr/$top_datatype/";		# big geneontology golr server
-my $base_solr_url = "http://localhost:8080/solr/";		# big geneontology golr server
+# my $base_solr_url = "http://localhost:8080/solr/";		# big geneontology golr server
+my $base_solr_url = "http://wobrbig.caltech.edu:8080/solr/";		# 2020 03 27 - changing this for Raymond
 
 
 my %paths;	# finalpath => array of all (array of nodes of paths that end)
 		# childToParent -> child node -> parent node => relationship
 		# # parentToChild -> parent node -> child node => relationship
 
-  my %nodesAll;								# for an annotated phenotype ID, all nodes in its topological map that have transitivity
-  my %edgesAll;								# for an annotated phenotype ID, all edges in its topological map that have transitivity
-  my %ancestorNodes;
+my %nodesAll;								# for an annotated phenotype ID, all nodes in its topological map that have transitivity
+my %edgesAll;								# for an annotated phenotype ID, all edges in its topological map that have transitivity
+my %ancestorNodes;
 
 &process();
 
@@ -60,26 +93,66 @@ sub process {
   my $action;                   # what user clicked
   unless ($action = $query->param('action')) { $action = 'none'; }
 
-  if ($action eq 'annotSummaryCytoscape')      { &annotSummaryCytoscape('all_roots'); }
+# http://wobr2.caltech.edu/~azurebrd/cgi-bin/soba_biggo.cgi?radio_datatype=phenotype&gene=let-23+%28Caenorhabditis+elegans%2C+WB%3AWBGene00002299%2C+-%2C+ZK1067.1%29&gene=lin-3+%28Caenorhabditis+elegans%2C+WB%3AWBGene00002992%2C+-%2C+F36H1.4%29&action=Graph+Two+Genes
+
+  if ($action eq 'annotSummaryCytoscape')           { &annotSummaryCytoscape('source_gene'); }
     elsif ($action eq 'annotSummaryGraph')          { &annotSummaryGraph();     }
     elsif ($action eq 'annotSummaryJson')           { &annotSummaryJson();      }	# temporarily keep this for the live www.wormbase going through the fake phenotype_graph_json widget
     elsif ($action eq 'annotSummaryJsonp')          { &annotSummaryJsonp();     }	# new jsonp widget to get directly from .wormbase without fake widget
-    elsif ($action eq 'frontPage')          { &frontPage();     }	# autocomplete on gene names
-    elsif ($action eq 'autocompleteXHR') {            &autocompleteXHR(); }
-
+    elsif ($action eq 'frontPage')                  { &frontPage();     }	# autocomplete on gene names
+    elsif ($action eq 'Analyze Terms')              { &annotSummaryCytoscape('source_ontology');     }    # autocomplete on gene names
+    elsif ($action eq 'autocompleteXHR')            { &autocompleteXHR(); }
+    elsif ($action eq 'autocompleteTazendraXHR')    { &autocompleteTazendraXHR(); }
+    elsif ($action eq 'validateGeneDatatype')       { &validateGeneDatatype(); }
+    elsif ($action eq 'One Gene to SObA Graph')     { &pickOneGenePage(); }
+    elsif ($action eq 'One Gene to Big GO SObA Graph')     { &pickOneGeneBiggoPage(); }
+    elsif ($action eq 'Gene Pair to Big GO SObA Graph')    { &pickTwoGenesBiggoPage(); }
+    elsif ($action eq 'Gene Pair to SObA Graph')    { &pickTwoGenesPage(); }
+    elsif ($action eq 'Terms to SObA Graph')        { &pickOntologyTermsPage(); }
+    elsif ($action eq 'Graph Two Genes')            { &annotSummaryCytoscape('source_gene'); }
+    elsif ($action eq 'Graph One Gene')             { &annotSummaryCytoscape('source_gene'); }
     else { &frontPage(); }				# no action, show dag by default
 } # sub process
 
 sub autocompleteXHR {
   print "Content-type: text/html\n\n";
   my ($var, $words) = &getHtmlVar($query, 'query');
-  unless ($words) { ($var, $words) = &getHtmlVar($query, 'query'); }
+  unless ($words) { ($var, $words) = &getHtmlVar($query, 'userValue'); }
   ($var, my $field) = &getHtmlVar($query, 'field');
   if ($field eq 'Gene') { &autocompleteGene($words); }
 } # sub autocompleteXHR
 
+sub autocompleteTazendraXHR {
+  print "Content-type: text/html\n\n";
+  my ($var, $words) = &getHtmlVar($query, 'query');
+  ($var, my $objectType) = &getHtmlVar($query, 'objectType');
+  if ($objectType eq 'gene') { 
+    my $url = 'https://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&userValue=' . $words;
+    my $page_data = get $url;
+    if ($page_data) { print qq($page_data\n); } }
+} # sub autocompleteTazendraXHR
+
+sub validateGeneDatatype {
+  print "Content-type: text/html\n\n";
+  my ($var, $datatype) = &getHtmlVar($query, 'datatype');
+  ($var, my $gene)     = &getHtmlVar($query, 'gene');
+#   my $url = $base_solr_url . $datatype . '/select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $gene . '%22';
+  my $url = $base_solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $gene . '%22';
+  my $page_data = get $url;
+  my $perl_scalar = $json->decode( $page_data );
+  my %jsonHash = %$perl_scalar;
+  if ($jsonHash{'response'}{'numFound'} == 0) { print qq(no data); } 
+    else { print qq(has data); }
+} # sub validateGeneDatatype
+
 sub autocompleteGene {
   my ($words) = @_;
+
+  my @words = split //, $words;
+  my $count = scalar @words;
+#   my $count = $words =~ tr/.//;
+  if ($words !~ m/^.{3,}/) { return; }
+
   my ($var, $taxonFq) = &getHtmlVar($query, 'taxonFq');
   my ($var, $datatype) = &getHtmlVar($query, 'datatype');
   my $max_results = 20; 
@@ -90,26 +163,51 @@ sub autocompleteGene {
   $escapedWords =~ s/:/\\:/g;
   my %matches; my $t = tie %matches, "Tie::IxHash";     # sorted hash to filter results
 
-  my $datatype_solr_url = $base_solr_url . $datatype . '/';
+#   my $datatype_solr_url = $base_solr_url . $datatype . '/';
+  my $datatype_solr_url = $base_solr_url;
+
+  my $printSolrQueries = 0;
+
+  if ($taxonFq) { $taxonFq =~ s/&quot;/"/g; }
 
 # Exact match (case sensitive)
-  my $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(bioentity_internal_id:' . $escapedWords . '+OR+bioentity_label:' . $escapedWords . '+OR+bioentity_name:' . $escapedWords . '+OR+synonym:' . $escapedWords . ')';
+  my $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(id:' . $escapedWords . ')';
   if ($taxonFq) { $solr_gene_url .= "&fq=($taxonFq)"; }
+  if ($printSolrQueries) { print qq($solr_gene_url<br><br>\n\n); }
   my ($matchesHashref) = &solrSearch( $solr_gene_url, \%matches, $max_results);
   %matches = %$matchesHashref;
 
-# String wildcard match (case sensitive)
+# Starting with word Wildcard match (case sensitive)
   my $matchesCount = scalar keys %matches;
   if ($matchesCount < $max_results) {
-    my $extraMatchesCount = $max_results - $matchesCount;
-   $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(bioentity_internal_id:' . $escapedWords . '*+OR+bioentity_label:' . $escapedWords . '*+OR+bioentity_name:' . $escapedWords . '*+OR+synonym:' . $escapedWords . '*)';
+    $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(id:' . $escapedWords . '*)';
     if ($taxonFq) { $solr_gene_url .= "&fq=($taxonFq)"; }
+    if ($printSolrQueries) { print qq($solr_gene_url<br><br>\n\n); }
     my ($matchesHashref) = &solrSearch( $solr_gene_url, \%matches, $max_results);
     %matches = %$matchesHashref;
   }
 
+# OLD WAY before 2020 10 15
+# # Exact match (case sensitive)
+#   my $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(id:' . $escapedWords . '+OR+bioentity_internal_id:' . $escapedWords . '+OR+bioentity_label:' . $escapedWords . '+OR+bioentity_name:' . $escapedWords . '+OR+synonym:' . $escapedWords . ')';
+#   if ($taxonFq) { $solr_gene_url .= "&fq=($taxonFq)"; }
+# # print qq($solr_gene_url<br><br>\n\n);
+#   my ($matchesHashref) = &solrSearch( $solr_gene_url, \%matches, $max_results);
+#   %matches = %$matchesHashref;
+# 
+# # String wildcard match (case sensitive)
+#   my $matchesCount = scalar keys %matches;
+#   if ($matchesCount < $max_results) {
+#     my $extraMatchesCount = $max_results - $matchesCount;
+#    $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(id:' . $escapedWords . '*+OR+bioentity_internal_id:' . $escapedWords . '*+OR+bioentity_label:' . $escapedWords . '*+OR+bioentity_name:' . $escapedWords . '*+OR+synonym:' . $escapedWords . '*)';
+#     if ($taxonFq) { $solr_gene_url .= "&fq=($taxonFq)"; }
+# # print qq($solr_gene_url<br><br>\n\n);
+#     my ($matchesHashref) = &solrSearch( $solr_gene_url, \%matches, $max_results);
+#     %matches = %$matchesHashref;
+#   }
+ 
   my @words; my $isPhrase = 0;
-  if ($words =~ m/[\s\-]/) { 
+  if ($words =~ m/[\s\-]/) {
     $isPhrase++;
     (@words) = split/[\s\-]/, $words; }
 
@@ -117,12 +215,13 @@ sub autocompleteGene {
       my $lastWord = pop @words;
       my $firstWord = join" ", @words;
       my $extraMatchesCount = $max_results - $matchesCount;
-      $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=((bioentity_internal_id_searchable:"' . $firstWord . '"+AND+bioentity_internal_id_searchable:' . $lastWord . '*)+OR+(bioentity_name_searchable:"' . $firstWord . '"+AND+bioentity_name_searchable:' . $lastWord . '*)+OR+(bioentity_label_searchable:"' . $firstWord . '"+AND+bioentity_label_searchable:' . $lastWord . '*)+OR+(synonym_searchable:"' . $firstWord . '"+AND+synonym_searchable:' . $lastWord . '*))';
+      $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=((bioentity_name_searchable:"' . $firstWord . '"+AND+bioentity_name_searchable:"' . $lastWord . '*")+OR+(bioentity_label_searchable:"' . $firstWord . '"+AND+bioentity_label_searchable:"' . $lastWord . '*")+OR+(synonym_searchable:"' . $firstWord . '"+AND+synonym_searchable:"' . $lastWord . '*"))';
 
 # :8080/solr/$datatype/select?qt=standard&fl=score,id,bioentity_internal_id,bioentity_label,bioentity_name,synonym,taxon,taxon_label&version=2.2&wt=json&rows=500&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=
 
 
       if ($taxonFq) { $solr_gene_url .= "&fq=($taxonFq)"; }
+      if ($printSolrQueries) { print qq($solr_gene_url<br><br>\n\n); }
       my ($matchesHashref) = &solrSearch( $solr_gene_url, \%matches, $max_results);
       %matches = %$matchesHashref;
     } else {		# not a phrase
@@ -131,8 +230,9 @@ sub autocompleteGene {
       $matchesCount = scalar keys %matches;
       if ($matchesCount < $max_results) {
         my $extraMatchesCount = $max_results - $matchesCount;
-        $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(bioentity_internal_id_searchable:' . $escapedWords . '+OR+bioentity_label_searchable:' . $escapedWords . '+OR+bioentity_name_searchable:' . $escapedWords . '+OR+synonym_searchable:' . $escapedWords . ')';
+        $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(bioentity_label_searchable:' . $escapedWords . '+OR+bioentity_name_searchable:' . $escapedWords . '+OR+synonym_searchable:' . $escapedWords . ')';
         if ($taxonFq) { $solr_gene_url .= "&fq=($taxonFq)"; }
+        if ($printSolrQueries) { print qq($solr_gene_url<br><br>\n\n); }
         my ($matchesHashref) = &solrSearch( $solr_gene_url, \%matches, $max_results);
         %matches = %$matchesHashref;
       }
@@ -141,8 +241,9 @@ sub autocompleteGene {
       $matchesCount = scalar keys %matches;
       if ($matchesCount < $max_results) {
         my $extraMatchesCount = $max_results - $matchesCount;
-        $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(bioentity_internal_id_searchable:' . $escapedWords . '*+OR+bioentity_label_searchable:' . $escapedWords . '*+OR+bioentity_name_searchable:' . $escapedWords . '*+OR+synonym_searchable:' . $escapedWords . '*)';
+        $solr_gene_url = $datatype_solr_url . 'select?qt=standard&fl=score,id,bioentity_internal_id,synonym,bioentity_label,bioentity_name,taxon,taxon_label&version=2.2&wt=json&rows=' . $max_results . '&indent=on&q=*:*&fq=document_category:%22bioentity%22&fq=(bioentity_label_searchable:' . $escapedWords . '*+OR+bioentity_name_searchable:' . $escapedWords . '*+OR+synonym_searchable:' . $escapedWords . '*)';
         if ($taxonFq) { $solr_gene_url .= "&fq=($taxonFq)"; }
+	if ($printSolrQueries) { print qq($solr_gene_url<br><br>\n\n); }
         my ($matchesHashref) = &solrSearch( $solr_gene_url, \%matches, $max_results);
         %matches = %$matchesHashref;
       }
@@ -151,6 +252,63 @@ sub autocompleteGene {
   my $matches = join"\n", keys %matches;
   print $matches;
 } # sub autocompleteGene
+
+sub validateListTermsQvalue {
+  my ($data) = @_;
+  my (@termsQvalue) = split/\n/, $data;
+  my %types;
+  my %termsQvalue = ();
+  my $errorMessage = '';
+  foreach my $termQvalue (@termsQvalue) {
+    if ($termQvalue =~ m/\s+$/) { $termQvalue =~ s/\s+$//; }
+    my ($term, $qvalue) = ('', undef);
+    my $orig_qvalue = '';
+    if ($termQvalue =~ m/^(\S+)\s+(.*?)$/) {
+        ($term, $qvalue) = $termQvalue =~ m/^(\S+)\s+(.*?)$/; 
+        if ($qvalue) { $orig_qvalue = $qvalue; }
+        if ($qvalue == 0) { $qvalue = 1e-100; $orig_qvalue = "zero"; }			# for a value of zero
+      }
+      elsif ($termQvalue =~ m/^(\S+)\s+$/) {
+        $term = $1; }
+      else { 
+        $term = $termQvalue; }
+    my ($datatype) = &getDatatypeFromObject($term);
+    $types{$datatype}++;
+    if ($qvalue == undef) {      $qvalue = 0.367879; }			
+      elsif ($qvalue < 1e-100) { $qvalue = 1e-100;   }
+    $termsQvalue{$term}{qvalue} = $qvalue;
+    $termsQvalue{$term}{orig_qvalue} = $orig_qvalue;
+  } # foreach my $termQvalue (@termsQvalue)
+  my @datatypes = keys %types;
+  my $datatype = join", ", @datatypes;
+  if ($errorMessage) {
+    return (0, $errorMessage, \%termsQvalue);
+  } elsif (scalar @datatypes == 1) {
+    return (1, $datatype, \%termsQvalue);
+  } else {
+    return (0, qq(ERROR invalid datatype "$datatype" found.), \%termsQvalue);
+  }
+} # validateListTermsQvalue
+
+sub getDatatypeFromObject {
+  my ($focusTermId) = @_;
+  my ($identifierType) = $focusTermId =~ m/^(\w+):/;
+  my $lcIdentifierType = lc($identifierType);
+  my %idToDatatype;
+  $idToDatatype{"wbbt"}        = "anatomy";
+  $idToDatatype{"doid"}        = "disease";
+  $idToDatatype{"go"}          = "go";
+  $idToDatatype{"wbls"}        = "lifestage";
+  $idToDatatype{"wbphenotype"} = "phenotype";
+  $idToDatatype{"WBbt"}        = "anatomy";
+  $idToDatatype{"DOID"}        = "disease";
+  $idToDatatype{"GO"}          = "go";
+  $idToDatatype{"WBls"}        = "lifestage";
+  $idToDatatype{"WBPhenotype"} = "phenotype";
+  if ($idToDatatype{$identifierType}) { return $idToDatatype{$identifierType}; }
+    elsif ($idToDatatype{$lcIdentifierType}) { return $idToDatatype{$lcIdentifierType}; }
+    else { return "$focusTermId"; }
+} # sub getSolrUrl
 
 
 sub solrSearch {
@@ -180,61 +338,441 @@ sub solrSearch {
     if (scalar (@{ $jsonHash{"response"}{"docs"} }) >= $max_results) { $$matchesHashref{"more results not shown; narrow your search"}++; }
   } # if (scalar keys %matches < $max_results)
   return $matchesHashref;
-}
-
+} # sub solrSearch
 
 sub frontPage {
-  print "Content-type: text/html\n\n";
+#   print "Content-type: text/html\n\n";
+#   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+#   $header .= "<title>$title</title>\n";
+#   $header .= "</head>";
+#   $header .= '<body class="yui-skin-sam">';
+#   print qq($header);
+  my $title = 'SObA options page';
+  &printHtmlHeader($title);
+  print qq(<body class="yui-skin-sam">);
+  print qq(<form method="get" action="soba_biggo.cgi">);
+  print << "EndOfText";
+  Big GO One Gene to SObA Graph:<br/>
+  Enter one gene name to obtain a SObA Graph that illustrates annotations.<br/>
+  <input type="submit" name="action" value="One Gene to Big GO SObA Graph"><br/><br/><br/>
+
+  Big GO Gene Pair to SObA Graph:<br/>
+  Enter two gene names to obtain a SObA Graph that illustrates their combined annotations.<br/>
+  <input type="submit" name="action" value="Gene Pair to Big GO SObA Graph"><br/><br/><br/>
+
+  Terms to SObA Graph:<br/>
+  Enter a list of enriched ontology terms (GO), and associated Q (corrected-P) values to obtain a SObA Graph.<br/>
+  <input type="submit" name="action" value="Terms to SObA Graph"><br/><br/><br/>
+EndOfText
+
+  print qq(</body></html>);
+} # sub frontPage
+
+sub pickOntologyTermsPage {
+#   print "Content-type: text/html\n\n";
   my $title = 'SObA pick a gene';
+#   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+#   $header .= "<title>$title</title>\n";
+#   print qq($header);
+  &printHtmlHeader($title);
+  print qq(<body class="yui-skin-sam">);
+#   my $exampleData = qq(WBbt:0006817     0.00026\nWBbt:0006814   0.00028\nWBbt:0003927   0.00031\nWBbt:0003737   0.00034\nWBbt:0003721   0.00034\nWBbt:0003740   0.00034\nWBbt:0003724   0.00043\nWBbt:0006762   0.00067\nWBbt:0006764   0.0007\nWBbt:0006763    0.00072\n);
+  my $exampleData = qq(WBPhenotype:0000012	0.0001\nWBPhenotype:0002056	0.00042\nWBPhenotype:0000462	0.005\nWBPhenotype:0001621	0.049\nWBPhenotype:0000200	0.07\nWBPhenotype:0000033	0.093\n);
+  print qq(<form method="post" action="soba_biggo.cgi">);
+  print qq(<h3>SObA terms - Enter a list of ontology terms (of the same type) and their associated statistical (correct-P or Q) values for a SObA graph</h3>\n);
+  print qq(<a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">user guide</a><br/><br/>\n);
+  print qq(Enter datatype objects paired with q-values on separate lines:<br/>\n);
+  print qq(<textarea rows="8" cols="80" placeholder="$exampleData" name="objectsQvalue" id="objectsQvalue"></textarea>);
+  print qq(<input type="hidden" name="filterForLcaFlag" id="filterForLcaFlag" value="1">);
+  print qq(<input type="hidden" name="filterLongestFlag" id="filterLongestFlag" value="1">);
+  print qq(<input type="hidden" name="showControlsFlag" id="showControlsFlag" value="0">);
+  print qq(<input type="submit" name="action" id="analyzePairsButton" value="Analyze Terms"><br/><br/><br/>);
+  print qq(</form>);
+  print qq(</body></html>);
+} # sub pickOntologyTermsPage
+
+sub pickTwoGenesPage {
+#   print "Content-type: text/html\n\n";
+  my $title = 'SObA pick two genes';
+  &printHtmlHeader($title);
+  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+  $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
+  $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
+  $header .= <<"EndOfText";
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/autocomplete-min.js"></script>
+    <script type="text/javascript" src="javascript/soba_biggo.js"></script>
+EndOfText
+
+#   $header .= "<title>$title</title>\n";
+  $header .= "</head>";
+  $header .= '<body class="yui-skin-sam">';
+  print qq($header);
+
+  print qq(<input type="hidden" name="which_page" id="which_page" value="pickTwoGenesPage">\n);
+
+#   my $datatype = 'biggo';		# by defalt for front page
+  my $datatype = 'phenotype';		# by defalt for front page
+#   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+  my $solr_taxon_url = $base_solr_url . 'select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+  my $page_data = get $solr_taxon_url;
+  my $perl_scalar = $json->decode( $page_data );
+  my %jsonHash = %$perl_scalar;
+
+  print qq(<form method="get" action="soba_biggo.cgi">\n);
+  print qq(<h3>SObA Gene Pair - combines and compares ontology annotations of a pair of genes</h3>\n);
+  print qq(<a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">user guide</a><br/><br/>\n);
+  print qq(Select an ontology to display.<br/>\n);
+# UNDO for biggo
+#   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+  my @datatypes = qw( anatomy disease go lifestage phenotype );
+  foreach my $datatype (@datatypes) {
+    my $checked = '';
+    if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
+#     print qq(<input type="radio" name="radio_datatype" id="radio_datatype" value="$datatype" $checked onclick="setAutocompleteListeners();" >$datatype</input><br/>\n);
+    print qq(<input type="radio" name="radio_datatype" id="radio_datatype" value="$datatype" $checked onclick="radioDatatypeClick('TwoGenes');" >$datatype</input><br/>\n); }
+  print qq(<br/>);
+
+  my @fieldCount  = ('One', 'Two');
+  my $fieldName = 'geneOneValue';
+  foreach my $fieldCount (@fieldCount) {
+    my $countGene = 'first'; if ($fieldCount eq 'Two') { $countGene = 'second'; $fieldName = 'autocompleteValue'; }
+    print << "EndOfText";
+      <B>Choose the $countGene gene <!--<span style="color: red;">*</span>--></B>
+      <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
+        <span id="messageGene${fieldCount}"></span>
+        <span id="containerForcedGene${fieldCount}AutoComplete">
+          <div id="forcedGene${fieldCount}AutoComplete">
+                <input size="50" name="$fieldName" id="input_Gene${fieldCount}" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
+                <div id="forcedGene${fieldCount}Container"></div>
+          </div></span><br/><br/>
+EndOfText
+# UNDO for biggo / species selection
+    next;
+    
+    my $div_display = ''; if ($fieldCount eq 'Two') { $div_display = 'style="display: none"'; }
+    print qq(<div id="controls$fieldCount" $div_display>\n);
+    print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
+    print qq(<select>\n);
+    my %taxons;
+    
+    my @priorityTaxons = ( 'Homo sapiens', 'Arabidopsis thaliana', 'Caenorhabditis elegans', 'Danio rerio', 'Drosophila melanogaster', 'Escherichia coli K-12', 'Mus musculus', 'Rattus norvegicus', 'Saccharomyces cerevisiae S288c' );
+    my %priorityTaxons;
+    foreach my $taxon (@priorityTaxons) {
+      $priorityTaxons{$taxon}++;
+      my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+#       print qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
+      print qq(<option value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</option>\n);
+    }
+#     print qq(<br/>);
+#     print qq(<br/>Additional species.<br/>);
+    
+    while (scalar (@{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} }) > 0) {
+      my $taxon      = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+      my $someNumber = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+      next if ($priorityTaxons{$taxon});	# already entered before
+      my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+      $taxons{$taxon} = $taxon_plus;
+#       $taxons{qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
+    }
+    foreach my $taxon (sort keys %taxons) {
+      print qq(<option value="$taxons{$taxon}" onclick="setAutocompleteListeners();">$taxon</option>\n);
+#       print $taxon;
+    }
+    print qq(</select>\n);
+    print qq(</div>\n);
+    print qq(<br/><br/>\n);
+  }
+  print qq(<input type="hidden" name="filterForLcaFlag" value="1">\n);
+  print qq(<input type="hidden" name="filterLongestFlag" value="1">\n);
+  print qq(<input type="hidden" name="showControlsFlag" value="0">\n);
+  print qq(<input type="submit" name="action" value="Graph Two Genes" ></input><br/><br/>\n);
+  print qq(<input name="reset" type="reset" value="Reset Gene Inputs" onclick="document.getElementById('input_GeneOne').value=''; document.getElementById('input_GeneTwo').value=''; document.getElementById('messageGeneOne').innerHTML =''; document.getElementById('messageGeneTwo').innerHTML ='';"><br/>\n);
+  print qq(</form>\n);
+
+  print qq(</body></html>);
+} # sub pickTwoGenesPage
+
+sub pickTwoGenesBiggoPage {
+#   print "Content-type: text/html\n\n";
+  my $title = 'SObA pick two genes';
+  &printHtmlHeader($title);
+  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+  $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
+  $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
+  $header .= <<"EndOfText";
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/autocomplete-min.js"></script>
+    <script type="text/javascript" src="javascript/soba_biggo.js"></script>
+EndOfText
+  $header .= "</head>";
+  $header .= '<body class="yui-skin-sam">';
+  print qq($header);
+
+  print qq(<input type="hidden" name="which_page" id="which_page" value="pickTwoGenesBiggoPage">\n);
+
+  my $datatype = 'biggo';		# by defalt for biggo page
+#   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+  my $solr_taxon_url = $base_solr_url . 'select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+  my $page_data = get $solr_taxon_url;
+  my $perl_scalar = $json->decode( $page_data );
+  my %jsonHash = %$perl_scalar;
+
+  print qq(<form method="get" action="soba_biggo.cgi">\n);
+  print qq(<h3>SObA Gene Pair - combines and compares ontology annotations of a pair of genes</h3>\n);
+  print qq(<a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">user guide</a><br/><br/>\n);
+
+  print qq(<input type="hidden" name="radio_datatype" id="radio_datatype" value="biggo">\n);
+
+  my @fieldCount  = ('One', 'Two');
+  my $fieldName = 'geneOneValue';
+  my %taxons;
+  foreach my $fieldCount (@fieldCount) {
+    my $countGene = 'first'; if ($fieldCount eq 'Two') { $countGene = 'second'; $fieldName = 'autocompleteValue'; }
+    print << "EndOfText";
+      <B>Choose the $countGene gene <!--<span style="color: red;">*</span>--></B>
+      <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
+        <span id="messageGene${fieldCount}"></span>
+        <span id="containerForcedGene${fieldCount}AutoComplete">
+          <div id="forcedGene${fieldCount}AutoComplete">
+                <input size="50" name="$fieldName" id="input_Gene${fieldCount}" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
+                <div id="forcedGene${fieldCount}Container"></div>
+          </div></span><br/><br/>
+EndOfText
+# next to skip / UNDO for biggo / species selection
+    
+    my $div_display = ''; # if ($fieldCount eq 'Two') { $div_display = 'style="display: none"'; }
+    print qq(<div id="controls$fieldCount" $div_display>\n);
+    print qq(<br/>Prioritize search by selecting a species.<br/>\n);
+    print qq(<select id="taxon${fieldCount}">\n);
+    print qq(<option value="All" onclick="setAutocompleteListeners();">All</option>\n);
+    
+    my @priorityTaxons = ( 'Homo sapiens', 'Arabidopsis thaliana', 'Caenorhabditis elegans', 'Danio rerio', 'Drosophila melanogaster', 'Escherichia coli K-12', 'Mus musculus', 'Rattus norvegicus', 'Saccharomyces cerevisiae S288c' );
+    my %priorityTaxons;
+    foreach my $taxon (@priorityTaxons) {
+      $priorityTaxons{$taxon}++;
+      my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+      print qq(<option value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</option>\n);
+# to use checkboxes instead of dropdown
+#       print qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
+    }
+    print qq(<br/>);
+    print qq(<br/>Additional species.<br/>);
+    
+    while (scalar (@{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} }) > 0) {
+      my $taxon      = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+      my $someNumber = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+      next if ($priorityTaxons{$taxon});	# already entered before
+      my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+      $taxons{$taxon} = $taxon_plus;
+# to use checkboxes instead of dropdown
+#       $taxons{qq(<input type="checkbox" class="taxon${fieldCount}" name="${fieldCount}$taxon" id="${fieldCount}$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
+    }
+    foreach my $taxon (sort keys %taxons) {
+      print qq(<option value="$taxons{$taxon}" onclick="setAutocompleteListeners();">$taxon</option>\n);
+# to use checkboxes instead of dropdown
+#       print $taxon;
+    }
+    print qq(</select>\n);
+    print qq(</div>\n);
+    print qq(<br/><br/>\n);
+  }
+  print qq(<input type="hidden" name="filterForLcaFlag" value="1">\n);
+  print qq(<input type="hidden" name="filterLongestFlag" value="1">\n);
+  print qq(<input type="hidden" name="showControlsFlag" value="0">\n);
+  print qq(<input type="submit" name="action" value="Graph Two Genes" ></input><br/><br/>\n);
+  print qq(<input name="reset" type="reset" value="Reset Gene Inputs" onclick="document.getElementById('input_GeneOne').value=''; document.getElementById('input_GeneTwo').value=''; document.getElementById('messageGeneOne').innerHTML =''; document.getElementById('messageGeneTwo').innerHTML ='';"><br/>\n);
+  print qq(</form>\n);
+
+  print qq(</body></html>);
+} # sub pickTwoGenesBiggoPage
+
+sub pickOneGeneBiggoPage {
+#   print "Content-type: text/html\n\n";
+  my $title = 'SObA pick a Big GO gene';
+  &printHtmlHeader($title);
   my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
   $header .= "<title>$title</title>\n";
-
-  $header .= '<link rel="stylesheet" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />';
-  $header .= "<link rel=\"stylesheet\" type=\"text/css\" href=\"http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css\" />";
 
   $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
 
-
   $header .= <<"EndOfText";
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css" />
-    <link rel="stylesheet" type="text/css" href="http://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/fonts/fonts-min.css" />
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/yahoo-dom-event/yahoo-dom-event.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/datasource/datasource-min.js"></script>
-    <script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/autocomplete/autocomplete-min.js"></script>
-    <script type="text/javascript" src="../javascript/soba_biggo.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/autocomplete-min.js"></script>
+    <script type="text/javascript" src="javascript/soba_biggo.js"></script>
 EndOfText
 
   $header .= "</head>";
   $header .= '<body class="yui-skin-sam">';
   print qq($header);
 
+  print qq(<input type="hidden" name="which_page" id="which_page" value="pickOneGeneBiggoPage">\n);
+
+  my $datatype = 'biggo';		# by defalt for front page
+#   my $datatype = 'phenotype';		# by defalt for front page
+#   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+  my $solr_taxon_url = $base_solr_url . 'select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+  my $page_data = get $solr_taxon_url;
+  my $perl_scalar = $json->decode( $page_data );
+  my %jsonHash = %$perl_scalar;
+
+  print qq(<form method="get" action="soba_biggo.cgi">\n);
+
+  print qq(<input type="hidden" name="radio_datatype" id="radio_datatype" value="biggo"\n);
+
   print << "EndOfText";
     <B>Choose a gene <!--<span style="color: red;">*</span>--></B>
     <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
       <span id="containerForcedGeneAutoComplete">
         <div id="forcedGeneAutoComplete">
-              <input size="50" name="gene" id="input_Gene" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
+              <input size="50" name="autocompleteValue" id="input_Gene" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
               <div id="forcedGeneContainer"></div>
         </div></span><br/><br/>
-  <br/>
 EndOfText
 
-  my $datatype = 'biggo';		# by defalt for front page
-  my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+  print qq(Prioritize search by selecting a species.<br/>\n);
+  my %taxons;
+  print qq(<select id="taxon_all">\n);
+  print qq(<option value="All" onclick="setAutocompleteListeners();">All</option>\n);
+#   print qq(<input type="checkbox" class="taxon_all" name="taxon_all" id="taxon_all" value="all" checked="checked">All Taxons</input><br/>\n);
+
+  my @priorityTaxons = ( 'Homo sapiens', 'Arabidopsis thaliana', 'Caenorhabditis elegans', 'Danio rerio', 'Drosophila melanogaster', 'Escherichia coli K-12', 'Mus musculus', 'Rattus norvegicus', 'Saccharomyces cerevisiae S288c' );
+  my %priorityTaxons;
+  foreach my $taxon (@priorityTaxons) {
+    $priorityTaxons{$taxon}++;
+    my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+    print qq(<option value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</option>\n);
+# to use checkboxes instead of dropdown
+#     print qq(<input type="checkbox" class="taxon" name="$taxon" id="$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n);
+  }
+  print qq(<br/>);
+  print qq(<br/>Additional species.<br/>);
+
+  while (scalar (@{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} }) > 0) {
+    my $taxon      = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+    my $someNumber = shift @{ $jsonHash{"facet_counts"}{"facet_fields"}{"taxon_label"} };
+    next if ($priorityTaxons{$taxon});	# already entered before
+    my $taxon_plus = $taxon; $taxon_plus =~ s/ /+/g;
+    $taxons{$taxon} = $taxon_plus;
+# to use checkboxes instead of dropdown
+#     $taxons{qq(<input type="checkbox" class="taxon" name="$taxon" id="$taxon" value="$taxon_plus" onclick="setAutocompleteListeners();">$taxon</input><br/>\n)}++;
+  }
+  foreach my $taxon (sort keys %taxons) {
+    print qq(<option value="$taxons{$taxon}" onclick="setAutocompleteListeners();">$taxon</option>\n);
+# to use checkboxes instead of dropdown
+    print $taxon;
+  }
+
+  print qq(</select><br/><br/>\n);
+  print qq(Force a full and valid gene identifier<br/>\n);
+  print qq(<input type="" name="focusTermId" value=""><br/><br/>\n);
+# UNDO controls
+#   print qq(<input type="hidden" name="filterForLcaFlag" value="1">\n);
+#   print qq(<input type="hidden" name="filterLongestFlag" value="1">\n);
+#   print qq(<input type="hidden" name="showControlsFlag" value="0">\n);
+  print qq(filterForLcaFlag  <input name="filterForLcaFlag" value="1"><br/>\n);
+  print qq(filterLongestFlag <input name="filterLongestFlag" value="1"><br/>\n);
+  print qq(showControlsFlag  <input name="showControlsFlag" value="1"><br/>\n);
+  print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
+  print qq(<input name="reset" type="reset" value="Reset Gene Input" onclick="document.getElementById('input_Gene').value='';"><br/>\n);
+  print qq(</form>\n);
+
+  print qq(</body></html>);
+} # sub pickOneGeneBiggoPage
+
+sub pickOneGenePage {
+#   print "Content-type: text/html\n\n";
+  my $title = 'SObA pick a gene';
+  &printHtmlHeader($title);
+  my $header = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><HTML><HEAD>';
+  $header .= "<title>$title</title>\n";
+
+#   $header .= '<link rel="stylesheet" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />';
+#   $header .= "<link rel=\"stylesheet\" type=\"text/css\" href=\"http://yui.yahooapis.com/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css\" />";
+
+  $header .= "<style type=\"text/css\">#forcedPersonAutoComplete { width:25em; padding-bottom:2em; } .div-autocomplete { padding-bottom:1.5em; }</style>";
+  $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
+
+#     <link rel="stylesheet" type="text/css" href="../yui/2.7.0/build/autocomplete/assets/skins/sam/autocomplete.css" />
+#     <link rel="stylesheet" type="text/css" href="../stylesheets/jex.css" />
+#     <link rel="stylesheet" type="text/css" href="../yui/2.7.0/build/fonts/fonts-min.css" />
+#     <script type="text/javascript" src="../yui/2.7.0/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+#     <script type="text/javascript" src="../yui/2.7.0/build/connection/connection-min.js"></script>
+#     <script type="text/javascript" src="../yui/2.7.0/build/datasource/datasource-min.js"></script>
+#     <script type="text/javascript" src="../yui/2.7.0/build/autocomplete/autocomplete-min.js"></script>
+#     <script type="text/javascript" src="../javascript/soba_biggo.js"></script>
+  $header .= <<"EndOfText";
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
+    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/datasource/datasource-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/autocomplete-min.js"></script>
+    <script type="text/javascript" src="javascript/soba_biggo.js"></script>
+EndOfText
+
+  $header .= "</head>";
+  $header .= '<body class="yui-skin-sam">';
+  print qq($header);
+
+  print qq(<input type="hidden" name="which_page" id="which_page" value="pickOneGenePage">\n);
+
+#   my $datatype = 'biggo';		# by defalt for front page
+  my $datatype = 'phenotype';		# by defalt for front page
+#   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+# UNDO
+  my $solr_taxon_url = $base_solr_url . 'select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+print qq(HERE $solr_taxon_url<br>\n);
   my $page_data = get $solr_taxon_url;
+print qq(HERE<br>\n);
   my $perl_scalar = $json->decode( $page_data );
+print qq(HERE<br>\n);
   my %jsonHash = %$perl_scalar;
 
+  print qq(<form method="get" action="soba_biggo.cgi">\n);
   print qq(Select a datatype to display.<br/>\n);
-  my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+# UNDO for biggo
+#   my @datatypes = qw( anatomy disease biggo go lifestage phenotype );
+  my @datatypes = qw( anatomy disease go lifestage phenotype );
   foreach my $datatype (@datatypes) {
     my $checked = '';
     if ($datatype eq 'phenotype') { $checked = qq(checked="checked"); }
     print qq(<input type="radio" name="radio_datatype" id="radio_datatype" value="$datatype" $checked onclick="setAutocompleteListeners();" >$datatype</input><br/>\n); }
+  print qq(<br/>);
 
+  print << "EndOfText";
+    <B>Choose a gene <!--<span style="color: red;">*</span>--></B>
+    <font size="-2" color="#3B3B3B">Start typing in a gene and choose from the drop-down.</font>
+      <span id="containerForcedGeneAutoComplete">
+        <div id="forcedGeneAutoComplete">
+              <input size="50" name="autocompleteValue" id="input_Gene" type="text" style="max-width: 444px; width: 99%; background-color: #E1F1FF;" value="">
+              <div id="forcedGeneContainer"></div>
+        </div></span><br/><br/>
+EndOfText
+  print qq(<input type="hidden" name="filterForLcaFlag" value="1">\n);
+  print qq(<input type="hidden" name="filterLongestFlag" value="1">\n);
+  print qq(<input type="hidden" name="showControlsFlag" value="0">\n);
+  print qq(<input type="submit" name="action" value="Graph One Gene"><br/><br/>\n);
+  print qq(<input name="reset" type="reset" value="Reset Gene Input" onclick="document.getElementById('input_Gene').value='';"><br/>\n);
+
+  print qq(<div style="display:none">);
   print qq(<br/>Prioritize search by selecting one or more species.<br/>\n);
   my %taxons;
 #   print qq(<input type="checkbox" class="taxon_all" name="taxon_all" id="taxon_all" value="all" checked="checked">All Taxons</input><br/>\n);
@@ -259,79 +797,22 @@ EndOfText
   foreach my $taxon (sort keys %taxons) {
     print $taxon;
   }
+  print qq(</div>);
+
+  print qq(</form>\n);
 
   print qq(</body></html>);
-} # sub frontPage
+} # sub pickOneGenePage
 
-sub makeInputField {
-  my ($current_value, $table, $order, $colspan, $rowspan, $class, $td_width, $input_size) = @_;
-  unless ($current_value) { $current_value = ''; }
-  my $freeForced = 'free';
-  my $containerSpanId = "container${freeForced}${table}${order}AutoComplete";
-  my $divAutocompleteId = "${freeForced}${table}${order}AutoComplete";
-  my $inputId = "input_${table}_$order";
-  my $divContainerId = "${freeForced}${table}${order}Container";
-  my $data = "<td width=\"$td_width\" class=\"$class\" rowspan=\"$rowspan\" colspan=\"$colspan\">
-  <span id=\"$containerSpanId\">
-  <div id=\"$divAutocompleteId\" class=\"div-autocomplete\">
-  <input id=\"$inputId\" name=\"$inputId\" size=\"$input_size\" value=\"$current_value\">
-  <div id=\"$divContainerId\"></div></div></span>
-  </td>";
-  return $data;
-} # sub makeInputField
-
-
-
-sub getSolrUrl {
-  my ($focusTermId) = @_;
-  my ($identifierType) = $focusTermId =~ m/^(\w+):/;
-  my %idToSubdirectory;
-  $idToSubdirectory{"WBbt"}        = "anatomy";
-  $idToSubdirectory{"DOID"}        = "disease";
-  $idToSubdirectory{"GO"}          = "go";
-  $idToSubdirectory{"WBls"}        = "lifestage";
-  $idToSubdirectory{"WBPhenotype"} = "phenotype";
-  my $solr_url = $base_solr_url . '/';
-} # sub getSolrUrl
-
-sub getTopoHash {
-  my ($focusTermId) = @_;
-  my ($solr_url) = &getSolrUrl($focusTermId);
-  my $url = $solr_url . "select?qt=standard&fl=*&version=2.2&wt=json&indent=on&rows=1&q=id:%22" . $focusTermId . "%22&fq=document_category:%22ontology_class%22";
-  
-  my $page_data = get $url;
-  
-  my $perl_scalar = $json->decode( $page_data );
-  my %jsonHash = %$perl_scalar;
-
-  my $topoHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"topology_graph_json"} );
-  my $transHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"regulates_transitivity_graph_json"} );	# need this for inferred Tree View
-  return ($topoHashref, $transHashref);
-} # sub getTopoHash
-
-sub getTopoChildrenParents {
-  my ($focusTermId, $topoHref) = @_;
-  my %topo = %$topoHref;
-  my %children; 			# children of the wanted focusTermId, value is relationship type (predicate) ; are the corresponding nodes on an edge where the object is the focusTermId
-  my %parents;				# direct parents of the wanted focusTermId, value is relationship type (predicate) ; are the corresponding nodes on an edge where the subject is the focusTermId
-  my %child;				# for any term, each subkey is a child
-  my (@edges) = @{ $topo{"edges"} };
-  for my $index (0 .. @edges) {
-    my ($sub, $obj, $pred) = ('', '', '');
-    if ($edges[$index]{'sub'}) { $sub = $edges[$index]{'sub'}; }
-    if ($edges[$index]{'obj'}) { $obj = $edges[$index]{'obj'}; }
-    if ($edges[$index]{'pred'}) { $pred = $edges[$index]{'pred'}; }
-    if ($obj eq $focusTermId) { $children{$sub} = $pred; }		# track children here
-    if ($sub eq $focusTermId) { $parents{$obj}  = $pred; }		# track parents here
-  }
-  return (\%children, \%parents);
-} # sub getTopoChildrenParents
 
 sub calcNodeWidth {
   my ($nodeCount, $maxAnyCount) = @_;
+  unless ($nodeCount) { $nodeCount = 1; }				# some values generated from enrichment don't have a count, default to smallest
   unless ($maxAnyCount) { $maxAnyCount = 1; }
-  my $nodeWidth    = 1; my $nodeScale = 1.5; my $nodeMinSize = 0.01; my $logScaler = .6;
+  my $nodeWidth    = 1; my $nodeScale = 1.5; my $nodeMinSize = 0.01; 
+#   my $logScaler = .6;
   $nodeWidth    = ( sqrt($nodeCount)/sqrt($maxAnyCount) * $nodeScale ) + $nodeMinSize;
+# print qq(NC $nodeCount MAC $maxAnyCount NW $nodeWidth E\n);
   return $nodeWidth;
 } # sub calcNodeWidth
 
@@ -350,172 +831,8 @@ sub getDiffTime {
 
 
 
-
-sub populateGeneNamesFromFlatfile {
-  my %geneNameToId; my %geneIdToName;
-  my $infile = '/home/azurebrd/cron/gin_names/gin_names.txt';
-  open (IN, "<$infile") or die "Cannot open $infile : $!";
-  while (my $line = <IN>) {
-    chomp $line;
-    my ($id, $name, $primary) = split/\t/, $line;
-    if ($primary eq 'primary') { $geneIdToName{$id}     = $name; }
-    my ($lcname)           = lc($name);
-    $geneNameToId{$lcname} = $id; }
-  close (IN) or die "Cannot close $infile : $!";
-  return (\%geneNameToId, \%geneIdToName);
-} # sub populateGeneNamesFromFlatfile
-
-sub calculateNodesAndEdgesAMIGO {
-  my ($focusTermId, $datatype) = @_;
-  unless ($datatype) { $datatype = 'phenotype'; }			# later will need to change based on different datatypes
-  my $toReturn = '';
-#   my ($solr_url) = &getSolrUrl($focusTermId);
-  my $solr_url = $base_solr_url . 'phenotype/';
-    # link 1, from wbgene get wbphenotypes from   "grouped":{ "annotation_class":{ "matches":12, "ngroups":4, "groups":[{ "groupValue":"WBPhenotype:0000674", # }]}}
-
-  my $rootId = 'WBPhenotype:0000886';
-  if ($datatype eq 'phenotype') { $rootId = 'WBPhenotype:0000886'; }
-
-  my %allLca;								# all nodes that are LCA to any pair of annotated terms
-  my %nodes;
-  my %edgesPtc;								# edges from parent to child
-
-  my $nodeWidth    = 1;
-  my $weightedNodeWidth    = 1;
-  my $unweightedNodeWidth  = 1;
-  my %annotationCounts;							# get annotation counts from evidence type
-  my %phenotypes; my @annotPhenotypes;					# array of annotated terms to loop and do pairwise comparisons
-  my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22WB:' . $focusTermId . '%22';
-  my $page_data   = get $annotation_count_solr_url;                                           # get the URL
-  my $perl_scalar = $json->decode( $page_data );                        # get the solr data
-  my %jsonHash    = %$perl_scalar;
-  foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
-      my $phenotype = $$doc{'annotation_class'};
-      $phenotypes{$phenotype}++;
-      my $id = $$doc{'id'};
-      my $varCount = 0; my $rnaiCount = 0;
-      if ($id =~ m/WB:WBVar\d+/) {  my (@wbvar)  = $id =~ m/(WB:WBVar\d+)/g;  $varCount  = scalar @wbvar;  }
-      if ($id =~ m/WB:WBRNAi\d+/) { my (@wbrnai) = $id =~ m/(WB:WBRNAi\d+)/g; $rnaiCount = scalar @wbrnai; }
-      foreach my $phenotype (@{ $$doc{'regulates_closure'} }) {
-        if ($varCount) {  for (1 .. $varCount) {  $annotationCounts{$phenotype}{'any'}++; $annotationCounts{$phenotype}{'Allele'}++; 
-                                                  $nodes{$phenotype}{'counts'}{'any'}++;  $nodes{$phenotype}{'counts'}{'Allele'}++;  } }
-        if ($rnaiCount) { for (1 .. $rnaiCount) { $annotationCounts{$phenotype}{'any'}++; $annotationCounts{$phenotype}{'RNAi'}++;     
-                                                  $nodes{$phenotype}{'counts'}{'any'}++;  $nodes{$phenotype}{'counts'}{'RNAi'}++;    } }
-      }
-  }
-  foreach my $phenotypeId (sort keys %phenotypes) {
-    push @annotPhenotypes, $phenotypeId;
-    my $phenotype_solr_url = $solr_url . 'select?qt=standard&fl=regulates_transitivity_graph_json,topology_graph_json&version=2.2&wt=json&indent=on&rows=1&fq=-is_obsolete:true&fq=document_category:%22ontology_class%22&q=id:%22' . $phenotypeId . '%22';
-
-    my $page_data   = get $phenotype_solr_url;                                           # get the URL
-    my $perl_scalar = $json->decode( $page_data );                        # get the solr data
-    my %jsonHash    = %$perl_scalar;
-    my $gviz        = GraphViz2->new(concentrate => 'concentrate');      # generate graphviz for main markup
-    my $transHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"regulates_transitivity_graph_json"} );
-    my %transHash = %$transHashref;
-    my (@nodes)   = @{ $transHash{"nodes"} };
-    my %transNodes;							# track transitivity nodes as nodes to keep from topology data
-    for my $index (0 .. @nodes) { if ($nodes[$index]{'id'}) { my $id  = $nodes[$index]{'id'};  $transNodes{$id}++; } }
-
-    my $topoHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"topology_graph_json"} );
-    my %topoHash = %$topoHashref;
-    my (@edges)   = @{ $topoHash{"edges"} };
-    for my $index (0 .. @edges) {                                       # for each edge, add to graph
-      my ($sub, $obj, $pred) = ('', '', '');                            # subject object predicate from topology_graph_json
-      if ($edges[$index]{'sub'}) {  $sub  = $edges[$index]{'sub'};  }
-      if ($edges[$index]{'obj'}) {  $obj  = $edges[$index]{'obj'};  }
-      next unless ( ($transNodes{$sub}) && ($transNodes{$obj}) );
-      if ($edges[$index]{'pred'}) { $pred = $edges[$index]{'pred'}; }
-      my $direction = 'back'; my $style = 'solid';                      # graph arror direction and style
-      if ($sub && $obj && $pred) {                                      # if subject + object + predicate
-        $edgesAll{$phenotypeId}{$sub}{$obj}++;				# for an annotated term's edges, each child to its parents
-        $edgesPtc{$obj}{$sub}++;					# any existing edge, parent to child
-      } # if ($sub && $obj && $pred)
-    } # for my $index (0 .. @edges)
-    my (@nodes)   = @{ $topoHash{"nodes"} };
-    for my $index (0 .. @nodes) {                                       # for each node, add to graph
-      my ($id, $lbl) = ('', '');                                        # id and label
-      if ($nodes[$index]{'id'}) {  $id  = $nodes[$index]{'id'};  }
-      if ($nodes[$index]{'lbl'}) { $lbl = $nodes[$index]{'lbl'}; }
-      next unless ($id);
-      $nodes{$id}{label} = $lbl;
-      next unless ($transNodes{$id});
-#       $lbl =~ s/ /<br\/>/g;                                                # replace spaces with html linebreaks in graph for more-square boxes
-      my $label = "$lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
-      if ($annotationCounts{$id}) { 					# if there are annotation counts to variation and/or rnai, add them to the box
-        my @annotCounts;
-        foreach my $evidenceType (sort keys %{ $annotationCounts{$id} }) {
-          next if ($evidenceType eq 'any');				# skip 'any', only used for relative size to max value
-          push @annotCounts, qq($annotationCounts{$id}{$evidenceType} $evidenceType); }
-        my $annotCounts = join"; ", @annotCounts;
-        $label = qq(LINEBREAK<br\/>$label<br\/><font color="transparent">$annotCounts<\/font>);				# add html line break and annotation counts to the label
-      }
-      if ($id && $lbl) { 
-        $nodesAll{$phenotypeId}{$id} = $lbl;
-      }
-    }
-  } # foreach my $phenotype (sort keys %phenotypes)
-
-  while (@annotPhenotypes) {
-    my $ph1 = shift @annotPhenotypes;					# compare each annotated term node to all other annotated term nodes
-    my $url = "http://www.wormbase.org/species/all/phenotype/$ph1";                              # URL to link to wormbase page for object
-    my $xlabel = $ph1; 	# FIX
-    $nodes{$ph1}{annot}++;
-    foreach my $ph2 (@annotPhenotypes) {				# compare each annotated term node to all other annotated term nodes
-      my $lcaHashref = &calculateLCA($ph1, $ph2);
-      my %lca = %$lcaHashref;
-      foreach my $lca (sort keys %lca) {
-        $url = "http://www.wormbase.org/species/all/phenotype/$lca";                              # URL to link to wormbase page for object
-        $allLca{$lca}++;
-        unless ($phenotypes{$lca}) { 					# only add lca nodes that are not annotated terms
-          $xlabel = $lca; 					# FIX
-          $nodes{$lca}{lca}++;
-        }
-      } # foreach my $lca (sort keys %lca)
-    } # foreach my $ph2 (@annotPhenotypes)				# compare each annotated term node to all other annotated term nodes
-  } # while (@annotPhenotypes)
-
-  my %edgesLca;								# edges that exist in graph generated from annoated terms + lca terms + root
-  my @parentNodes = ($rootId);						# nodes that are parents, at first root, later any nodes that should be in graph
-  while (@parentNodes) {						# while there are parent nodes, go through them
-    my $parent = shift @parentNodes;					# take a parent
-    my %edgesPtcCopy = %{ dclone(\%edgesPtc) };				# make a temp copy since edges will be getting deleted per parent
-    while (scalar keys %{ $edgesPtcCopy{$parent} } > 0) {		# while parent has children
-      foreach my $child (sort keys %{ $edgesPtcCopy{$parent} }) {	# each child of parent
-        if ($allLca{$child} || $phenotypes{$child}) { 			# good node, keep edge when child is an lca or annotated term
-            delete $edgesPtcCopy{$parent}{$child};			# remove from %edgesPtc, does not need to be checked further
-            push @parentNodes, $child;					# child is a good node, add to parent list to check its children
-            $edgesLca{$parent}{$child}++; }				# add parent-child edge to final graph
-          else {							# bad node, remove and reconnect edges
-            delete $edgesPtcCopy{$parent}{$child};			# remove parent-child edge
-            foreach my $grandchild (sort keys %{ $edgesPtcCopy{$child} }) {	# take each grandchild of child
-              delete $edgesPtcCopy{$child}{$grandchild};		# remove child-grandchild edge
-              $edgesPtcCopy{$parent}{$grandchild}++; } }		# make replacement edge between parent and grandchild
-      } # foreach my $child (sort keys %{ $edgesPtcCopy{$parent} })
-    } # while (scalar keys %{ $edgesPtcCopy{$parent} } > 0)
-  } # while (@parentNodes)
-  foreach my $parent (sort keys %edgesLca) {
-    my $parent_placeholder = $parent;
-    $parent_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-    foreach my $child (sort keys %{ $edgesLca{$parent} }) {
-      my $child_placeholder = $child;
-      $child_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-#       $toReturn .= qq(EDGE $parent TO $child E<br/>\n);
-#       $gviz_lca_edges->add_edge(from => "$parent_placeholder", to => "$child_placeholder", dir => "$direction", color => "$edgecolor", fontcolor => "$edgecolor", style => "$style", arrowsize => ".3"); 
-#       $gviz_lca_unweighted->add_edge(from => "$parent_placeholder", to => "$child_placeholder", dir => "$direction", color => "$edgecolor", fontcolor => "$edgecolor", style => "$style", arrowsize => ".3"); 
-#       $gviz_homogeneous->add_edge(from => "$parent_placeholder", to => "$child_placeholder", dir => "$direction", color => "$edgecolor", fontcolor => "$edgecolor", style => "$style", arrowsize => ".3"); 
-    } # foreach my $child (sort keys %{ $edgesLca{$parent} })
-  } # foreach my $parent (sort keys %edgesLca)
-
-#   foreach my $node (sort keys %nodes) {
-#     if ($nodes{$node}{annot}) {    $toReturn .= qq($node annot<br/>); }
-#       elsif ($nodes{$node}{lca}) { $toReturn .= qq($node lca<br/>); }
-#   }
-  return ($toReturn, \%nodes, \%edgesLca);
-} # sub calculateNodesAndEdgesAMIGO
-
 sub calculateNodesAndEdges {
-  my ($focusTermId, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes) = @_;
+  my ($focusTermId, $geneOneId, $objectsQvalue, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes) = @_;
   my (@parentNodes) = split/,/, $rootsChosen;
   unless ($datatype) { $datatype = 'phenotype'; }			# later will need to change based on different datatypes
 #   if ($datatype eq 'phenotype') {		# FIX should come from function call
@@ -531,96 +848,129 @@ sub calculateNodesAndEdges {
   my ($var, $radio_etd)        = &getHtmlVar($query, 'radio_etd');
   my ($var, $radio_eta)        = &getHtmlVar($query, 'radio_eta');
   my $toReturn = '';
-  my $solr_url = $base_solr_url . $datatype . '/';
+#   my $solr_url = $base_solr_url . $datatype . '/';
+  my $solr_url = $base_solr_url;
     # link 1, from wbgene get wbphenotypes from   "grouped":{ "annotation_class":{ "matches":12, "ngroups":4, "groups":[{ "groupValue":"WBPhenotype:0000674", # }]}}
 
   my %allLca;								# all nodes that are LCA to any pair of annotated terms
-  my %nodes;
+  my %nodes;								# node -> 'counts' -> $whichGene/'anygene' -> $evidenceType/'anytype'
+                                                                        # node -> qvalue
+                                                                        # node -> orig_qvalue
+                                                                        # node -> label
+                                                                        # node -> annot		annotated node
+                                                                        # node -> lca		lca node
   my %edgesPtc;								# edges from parent to child
 
   my $nodeWidth    = 1;
   my $weightedNodeWidth    = 1;
   my $unweightedNodeWidth  = 1;
 
+  my %annotationNodeidWhichgene = ();					# annotation state 'annot' vs 'any' -> nodeid -> which gene 'geneOne' or 'geneTwo'
+  my @annotNodeIds;							# array of annotated terms to loop and do pairwise comparisons
 
-# AMIGO
-#   my %annotationCounts;							# get annotation counts from evidence type
-#   my %phenotypes; my @annotPhenotypes;					# array of annotated terms to loop and do pairwise comparisons
-#   my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $focusTermId . '%22';
-#   print qq( annotation_count_solr_url $annotation_count_solr_url\n);                                           # get the URL
-#   my $page_data   = get $annotation_count_solr_url;                                           # get the URL
-#   my $perl_scalar = $json->decode( $page_data );                        # get the solr data
-#   my %jsonHash    = %$perl_scalar;
-#   foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
-#       my $phenotype = $$doc{'annotation_class'};
-#       $phenotypes{$phenotype}++;
-#       my $id = $$doc{'id'};
-#       my $varCount = 0; my $rnaiCount = 0;
-#       if ($id =~ m/WB:WBVar\d+/) {  my (@wbvar)  = $id =~ m/(WB:WBVar\d+)/g;  $varCount  = scalar @wbvar;  }
-#       if ($id =~ m/WB:WBRNAi\d+/) { my (@wbrnai) = $id =~ m/(WB:WBRNAi\d+)/g; $rnaiCount = scalar @wbrnai; }
-#       foreach my $phenotype (@{ $$doc{'regulates_closure'} }) {
-#         if ($varCount) {  for (1 .. $varCount) {  $annotationCounts{$phenotype}{'any'}++; $annotationCounts{$phenotype}{'Allele'}++; 
-#                                                   $nodes{$phenotype}{'counts'}{'any'}++;  $nodes{$phenotype}{'counts'}{'Allele'}++;  } }
-#         if ($rnaiCount) { for (1 .. $rnaiCount) { $annotationCounts{$phenotype}{'any'}++; $annotationCounts{$phenotype}{'RNAi'}++;     
-#                                                   $nodes{$phenotype}{'counts'}{'any'}++;  $nodes{$phenotype}{'counts'}{'RNAi'}++;    } }
-#       }
-#   }
+  my %termsQvalue;							# map term to qvalue from user input
 
-# BIGGO
-  my %annotationCounts;							# get annotation counts from evidence type
-  my %phenotypes; my @annotPhenotypes;					# array of annotated terms to loop and do pairwise comparisons
-  my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $focusTermId . '%22';
-  if ($radio_etgo) {
-    if ($radio_etgo eq 'radio_etgo_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $focusTermId . '%22'; }
-      elsif ($radio_etgo eq 'radio_etgo_onlyiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=bioentity,regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:(IDA+IEP+IGC+IGI+IMP+IPI)&fq=bioentity:%22' . $focusTermId . '%22'; } }
-  if ($radio_etp) {
-    if ($radio_etp eq 'radio_etp_onlyvariation') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:Variation&fq=bioentity:%22' . $focusTermId . '%22'; }
-      elsif ($radio_etp eq 'radio_etp_onlyrnai') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:RNAi&fq=bioentity:%22' . $focusTermId . '%22'; } }
-  if ($radio_etd) {
-    if ($radio_etd eq 'radio_etd_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $focusTermId . '%22'; } }
-  if ($radio_eta) {
-    if ($radio_eta eq 'radio_eta_onlyexprcluster') {       $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:WBPaper*)&fq=bioentity:%22' . $focusTermId . '%22'; }
-      elsif ($radio_eta eq 'radio_eta_onlyexprpattern') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:Expr*+*WB\:Marker*)&fq=bioentity:%22' . $focusTermId . '%22'; } }
+# START
+  my @geneIds = ();
+  if ($focusTermId) {
+    push @geneIds, $focusTermId;
+    if ($geneOneId) { push @geneIds, $geneOneId; }
+    foreach my $geneId (@geneIds) {
+      my $whichGene = 'geneOne';
+      if ($geneId eq $focusTermId) { $whichGene = 'geneTwo'; }
+#     print qq(FT $focusTermId E\n);
+      my $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $geneId . '%22';
+      if ($radio_etgo) {
+        if ($radio_etgo eq 'radio_etgo_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $geneId . '%22'; }
+          elsif ($radio_etgo eq 'radio_etgo_onlyiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=bioentity,regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:(EXP+IDA+IPI+IMP+IGI+IEP)&fq=bioentity:%22' . $geneId . '%22'; } }
+      if ($radio_etp) {
+        if ($radio_etp eq 'radio_etp_onlyvariation') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:Variation&fq=bioentity:%22' . $geneId . '%22'; }
+          elsif ($radio_etp eq 'radio_etp_onlyrnai') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=evidence_type:RNAi&fq=bioentity:%22' . $geneId . '%22'; } }
+      if ($radio_etd) {
+        if ($radio_etd eq 'radio_etd_excludeiea') { $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=-evidence_type:IEA&fq=bioentity:%22' . $geneId . '%22'; } }
+      if ($radio_eta) {
+        if ($radio_eta eq 'radio_eta_onlyexprcluster') {       $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:WBPaper*)&fq=bioentity:%22' . $geneId . '%22'; }
+          elsif ($radio_eta eq 'radio_eta_onlyexprpattern') {  $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=id:(*WB\:Expr*+*WB\:Marker*)&fq=bioentity:%22' . $geneId . '%22'; } }
 
 
-# Anatomy, Expr and Expression_cluster (ref.
-# https://wormbase.org/tools/ontology_browser/show_genes?focusTermName=Anatomy&focusTermId=WBbt:0005766).
-# There are three groups of objects WB:Expr***, WBMarker*** (these are Expression patterns), WB:WBPaper*** (these are Expression profiles).
+#     Anatomy, Expr and Expression_cluster (ref.
+#     https://wormbase.org/tools/ontology_browser/show_genes?focusTermName=Anatomy&focusTermId=WBbt:0005766).
+#     There are three groups of objects WB:Expr***, WBMarker*** (these are Expression patterns), WB:WBPaper*** (these are Expression profiles).
 
-# amigo.cgi query
-#   $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22WB:' . $focusTermId . '%22';
+#     amigo.cgi query
+#       $annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22WB:' . $geneId . '%22';
 
-  my $page_data   = get $annotation_count_solr_url;                                           # get the URL
-#   print qq( annotation_count_solr_url $annotation_count_solr_url\n);                                           # get the URL
-# numFound == 0
-  my $perl_scalar = $json->decode( $page_data );                        # get the solr data
-  my %jsonHash    = %$perl_scalar;
+      my $page_data   = get $annotation_count_solr_url;                                           # get the URL
+#       print qq( annotation_count_solr_url $annotation_count_solr_url\n);                                           # get the URL
+#     numFound == 0
+      my $perl_scalar = $json->decode( $page_data );                        # get the solr data
+      my %jsonHash    = %$perl_scalar;
 
-  if ($jsonHash{'response'}{'numFound'} == 0) { return ($toReturn, \%nodes, \%nodes); }	# return nothing if there are no annotations found
+#       if ($jsonHash{'response'}{'numFound'} == 0) { return ($toReturn, \%nodes, \%nodes); }	# return nothing if there are no annotations found
+      next if ($jsonHash{'response'}{'numFound'} == 0);		 	# skip if there are no annotations found, can't return because could have 2 genes
 
-  foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
-    my $phenotype = $$doc{'annotation_class'};
-    $phenotypes{$phenotype}++;
-    my $id = $$doc{'id'};
-    my (@idarray) = split/\t/, $id;
-    if ($datatype eq 'anatomy') {  
-        my @entries = split/\|/, $idarray[7];
-        foreach my $entry (@entries) { 
-          my $type = ''; 
-          if ($entry =~ m/^WB:Expr/) {         $type = 'Expression Pattern'; }
-            elsif ($entry =~ m/^WBMarker/) {   $type = 'Expression Pattern'; }
-            elsif ($entry =~ m/^WB:WBPaper/) { $type = 'Expression Cluster'; }
-          if ($type) {
-            foreach my $goid (@{ $$doc{'regulates_closure'} }) {
-              $annotationCounts{$goid}{'any'}++; $annotationCounts{$goid}{$type}++; 
-              $nodes{$goid}{'counts'}{'any'}++;  $nodes{$goid}{'counts'}{$type}++;  } } } }
-      else {
-        my $type = $idarray[6];
-        if ($datatype eq 'lifestage') { if ($type eq 'IDA') { $type = 'Gene Expression'; } }
-        foreach my $goid (@{ $$doc{'regulates_closure'} }) {
-          $annotationCounts{$goid}{'any'}++; $annotationCounts{$goid}{$type}++; 
-          $nodes{$goid}{'counts'}{'any'}++;  $nodes{$goid}{'counts'}{$type}++;  } }
+      foreach my $doc (@{ $jsonHash{'response'}{'docs'} }) {
+        my $nodeIdAnnotated = $$doc{'annotation_class'};
+        $annotationNodeidWhichgene{'annot'}{$nodeIdAnnotated}{$whichGene}++;
+        $annotationNodeidWhichgene{'any'}{$nodeIdAnnotated}{$whichGene}++;
+        my $id = $$doc{'id'};
+        my (@idarray) = split/\t/, $id;
+        if ($datatype eq 'anatomy') {  
+            my @entries = split/\|/, $idarray[7];
+            foreach my $entry (@entries) { 
+              my $evidenceType = ''; 
+              if ($entry =~ m/^WB:Expr/) {         $evidenceType = 'Expression Pattern'; }
+                elsif ($entry =~ m/^WBMarker/) {   $evidenceType = 'Expression Pattern'; }
+                elsif ($entry =~ m/^WB:WBPaper/) { $evidenceType = 'Expression Cluster'; }
+              if ($evidenceType) {
+# FIX ?  nodeIdInferred -> nodeIdAnnotany ?
+                foreach my $nodeIdInferred (@{ $$doc{'regulates_closure'} }) {
+#       print qq(NODE whichGene $whichGene GOID $nodeIdInferred 1\n);
+                  $annotationNodeidWhichgene{'any'}{$nodeIdInferred}{$whichGene}++;	# track which gene inferred nodes came from
+#                   $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$evidenceType}++;  
+                  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{$evidenceType}++;  
+                  $nodes{$nodeIdInferred}{'counts'}{$whichGene}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{$whichGene}{$evidenceType}++; } } } }
+          else {
+            my $evidenceType = $idarray[6];
+            if ($datatype eq 'lifestage') { if ($evidenceType eq 'IDA') { $evidenceType = 'Gene Expression'; } }
+            foreach my $nodeIdInferred (@{ $$doc{'regulates_closure'} }) {
+              if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
+                next unless ($nodeIdInferred =~ m/^GO:/); }
+              $annotationNodeidWhichgene{'any'}{$nodeIdInferred}{$whichGene}++;		# track which gene inferred nodes came from
+#               $nodes{$nodeIdInferred}{'counts'}{'any'}++;  $nodes{$nodeIdInferred}{'counts'}{$evidenceType}++;  
+              $nodes{$nodeIdInferred}{'counts'}{'anygene'}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{'anygene'}{$evidenceType}++;  
+              $nodes{$nodeIdInferred}{'counts'}{$whichGene}{'anytype'}++;  $nodes{$nodeIdInferred}{'counts'}{$whichGene}{$evidenceType}++; } 
+}
+      } # foreach my $doc (@{ $jsonHash{'response'}{'docs'} })
+    } # foreach my $geneId (@geneIds)
+  } # if ($focusTermId)
+    elsif ($objectsQvalue) {
+      my ($is_ok, $termsQvalue_datatype, $termsQvalueHref) = &validateListTermsQvalue($objectsQvalue);
+      if ($is_ok) {
+        my $whichGene = 'geneOne';
+        %termsQvalue = %$termsQvalueHref;
+        foreach my $term (sort keys %termsQvalue) {
+          my $qvalue = $termsQvalue{$term}{qvalue};
+          my $orig_qvalue = $termsQvalue{$term}{orig_qvalue};
+          $qvalue = $qvalue + 0;			# for some reason this has a linebreak after it, needs to be a number for json
+          if ($qvalue == 0) { $qvalue = 0.1; }
+          my $scaling = 0;
+#           $scaling = 1 / $qvalue;
+#           $scaling = -1 * log($qvalue);
+          if ($qvalue) {
+            $scaling = -1 * log($qvalue); }
+          $nodes{$term}{'counts'}{'anygene'}{'anytype'} = $scaling;
+          $nodes{$term}{'qvalue'} = $qvalue;
+          $nodes{$term}{'orig_qvalue'} = $orig_qvalue;
+#           print qq(TERM $term V $termsQvalue{$term}{qvalue} S $scaling E\n);
+          $annotationNodeidWhichgene{'annot'}{$term}{$whichGene}++;
+          $annotationNodeidWhichgene{'any'}{$term}{$whichGene}++;
+        } # foreach my $term (sort keys %termsQvalue)
+    }
+      else { print qq(Terms did not validate properly. $termsQvalue_datatype<br>\n); }
   }
+
+# END
 
 
 # amigo.cgi
@@ -628,20 +978,26 @@ sub calculateNodesAndEdges {
 #     my $phenotype_solr_url = $solr_url . 'select?qt=standard&fl=regulates_transitivity_graph_json,topology_graph_json&version=2.2&wt=json&indent=on&rows=1&fq=-is_obsolete:true&fq=document_category:%22ontology_class%22&q=id:%22' . $phenotypeId . '%22';
 
 
-  foreach my $phenotypeId (sort keys %phenotypes) {
-    push @annotPhenotypes, $phenotypeId;
-    my $phenotype_solr_url = $solr_url . 'select?qt=standard&fl=regulates_transitivity_graph_json,topology_graph_json&version=2.2&wt=json&indent=on&rows=1&fq=-is_obsolete:true&fq=document_category:%22ontology_class%22&q=id:%22' . $phenotypeId . '%22';
+  my $errorMessage = '';
+  foreach my $nodeIdAnnotated (sort keys %{ $annotationNodeidWhichgene{'annot'} }) {
+    push @annotNodeIds, $nodeIdAnnotated;
+    my $phenotype_solr_url = $solr_url . 'select?qt=standard&fl=regulates_transitivity_graph_json,topology_graph_json&version=2.2&wt=json&indent=on&rows=1&fq=-is_obsolete:true&fq=document_category:%22ontology_class%22&q=id:%22' . $nodeIdAnnotated . '%22';
 
     my $page_data   = get $phenotype_solr_url;                                           # get the URL
-#     print qq( phenotype_solr_url $phenotype_solr_url\n);                                           # get the URL
+#     print qq( phenotype_solr_url $phenotype_solr_url\n);
     my $perl_scalar = $json->decode( $page_data );                        # get the solr data
     my %jsonHash    = %$perl_scalar;
+    if ($jsonHash{'response'}{'numFound'} == 0) { $errorMessage .= qq($nodeIdAnnotated not found<br/>); }
     next unless ($jsonHash{"response"}{"docs"}[0]{"regulates_transitivity_graph_json"} );	# term must have data to extra json from it
     my $transHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"regulates_transitivity_graph_json"} );
     my %transHash = %$transHashref;
     my (@nodes)   = @{ $transHash{"nodes"} };
     my %transNodes;							# track transitivity nodes as nodes to keep from topology data
-    for my $index (0 .. @nodes) { if ($nodes[$index]{'id'}) { my $id  = $nodes[$index]{'id'};  $transNodes{$id}++; } }
+    for my $index (0 .. @nodes) { if ($nodes[$index]{'id'}) { 
+      my $id  = $nodes[$index]{'id'}; 
+      if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
+         next unless ($id =~ m/^GO:/); }
+      $transNodes{$id}++; } }
 
     my $topoHashref = $json->decode( $jsonHash{"response"}{"docs"}[0]{"topology_graph_json"} );
     my %topoHash = %$topoHashref;
@@ -652,9 +1008,9 @@ sub calculateNodesAndEdges {
       if ($edges[$index]{'obj'}) {  $obj  = $edges[$index]{'obj'};  }
       next unless ( ($transNodes{$sub}) && ($transNodes{$obj}) );
       if ($edges[$index]{'pred'}) { $pred = $edges[$index]{'pred'}; }
-      my $direction = 'back'; my $style = 'solid';                      # graph arror direction and style
+#       my $direction = 'back'; my $style = 'solid';                      # graph arror direction and style
       if ($sub && $obj && $pred) {                                      # if subject + object + predicate
-        $edgesAll{$phenotypeId}{$sub}{$obj}++;				# for an annotated term's edges, each child to its parents
+        $edgesAll{$nodeIdAnnotated}{$sub}{$obj}++;				# for an annotated term's edges, each child to its parents
         $edgesPtc{$obj}{$sub}++;					# any existing edge, parent to child
       } # if ($sub && $obj && $pred)
     } # for my $index (0 .. @edges)
@@ -665,53 +1021,64 @@ sub calculateNodesAndEdges {
       if ($nodes[$index]{'lbl'}) { $lbl = $nodes[$index]{'lbl'}; }
       next unless ($id);
 # UNDO THIS
-#       $lbl = "$id - $lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
+#       $lbl = "$id - $lbl";                                          # for debugging to find IDs in graph
       $nodes{$id}{label} = $lbl;
-      next unless ($transNodes{$id});
-#       $lbl =~ s/ /<br\/>/g;                                                # replace spaces with html linebreaks in graph for more-square boxes
-      my $label = "$lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
-      if ($annotationCounts{$id}) { 					# if there are annotation counts to variation and/or rnai, add them to the box
-        my @annotCounts;
-        foreach my $evidenceType (sort keys %{ $annotationCounts{$id} }) {
-          next if ($evidenceType eq 'any');				# skip 'any', only used for relative size to max value
-          push @annotCounts, qq($annotationCounts{$id}{$evidenceType} $evidenceType); }
-        my $annotCounts = join"; ", @annotCounts;
-        $label = qq(LINEBREAK<br\/>$label<br\/><font color="transparent">$annotCounts<\/font>);				# add html line break and annotation counts to the label
-      }
+      next unless ($transNodes{$id});					# skip adding node if it's not in transitivity (otherwise, e.g. biggo WBGene00002992 gets GO:0031224 is LCA of GO:0016020 and GO:0016021)
+# #       $lbl =~ s/ /<br\/>/g;                                                # replace spaces with html linebreaks in graph for more-square boxes
+#       my $label = "$lbl";                                          # node label should have full id, not stripped of :, which is required for edge title text
+#       if ($nodes{$id}) { 					# if there are annotation counts to variation and/or rnai, add them to the box
+#         my $annotCounts = '';
+#         foreach my $whichGene (sort keys %{ $nodes{$id}{'counts'} }) {
+#           next if ($whichGene eq 'anygene');				# skip 'anygene', only use geneOne / geneTwo
+#           $annotCounts .= $whichGene . ' - ';
+#           my @annotCounts;
+#           foreach my $evidenceType (sort keys %{ $nodes{$id}{'counts'}{$whichGene} }) {
+#             next if ($evidenceType eq 'anytype');			# skip 'anytype', only used for relative size to max value
+#             push @annotCounts, qq($nodes{$id}{'counts'}{$whichGene}{$evidenceType} $evidenceType); } 
+#           $annotCounts .= join"; ", @annotCounts; }
+#         $annotCounts .= "\n";
+#         $label = qq(LINEBREAK<br\/>$label<br\/><font color="transparent">$annotCounts<\/font>);				# add html line break and annotation counts to the label
+#       }
+# print qq(ID $id LBL $lbl E\n);
+
       if ($id && $lbl) { 
-        $nodesAll{$phenotypeId}{$id} = $lbl;
+# if ( ($nodeIdAnnotated eq 'GO:0016021') || ($nodeIdAnnotated eq 'GO:0016020') ) { print qq(ADDING $nodeIdAnnotated TO $id LBL $lbl\n); }
+        $nodesAll{$nodeIdAnnotated}{$id} = $lbl;
+# print qq(nodesAll $nodeIdAnnotated ID $id LBL $lbl E\n);
       }
     }
-  } # foreach my $phenotypeId (sort keys %phenotypes)
+  } # foreach my $nodeIdAnnotated (sort keys %{ $annotationNodeidWhichgene{'annot'} })
 
   if (!$filterForLcaFlag) {
      foreach my $annotTerm (sort keys %nodesAll) {
        $nodes{$annotTerm}{annot}++;
-       foreach my $phenotype (sort keys %{ $nodesAll{$annotTerm} }) {
-#          my $url = "http://www.wormbase.org/species/all/go_term/$phenotype";                              # URL to link to wormbase page for object
-           $allLca{$phenotype}++;
-           unless ($phenotypes{$phenotype}) { 					# only add lca nodes that are not annotated terms
-# print qq(NODES $phenotype LCA\n);
-             $nodes{$phenotype}{lca}++; } } } }
+       foreach my $nodeIdAny (sort keys %{ $nodesAll{$annotTerm} }) {
+#          my $url = "http://www.wormbase.org/species/all/go_term/$nodeIdAny";                              # URL to link to wormbase page for object
+           $allLca{$nodeIdAny}++;
+           unless ($annotationNodeidWhichgene{'annot'}{$nodeIdAny}) { 					# only add lca nodes that are not annotated terms
+# print qq(NODES $nodeIdAny LCA\n);
+             $nodes{$nodeIdAny}{lca}++; } } } }
     else {
-      while (@annotPhenotypes) {
-        my $ph1 = shift @annotPhenotypes;					# compare each annotated term node to all other annotated term nodes
+      while (@annotNodeIds) {
+        my $ph1 = shift @annotNodeIds;					# compare each annotated term node to all other annotated term nodes
 #         my $url = "http://www.wormbase.org/species/all/go_term/$ph1";                              # URL to link to wormbase page for object
         my $xlabel = $ph1; 	# FIX
         $nodes{$ph1}{annot}++;
-        foreach my $ph2 (@annotPhenotypes) {				# compare each annotated term node to all other annotated term nodes
+        foreach my $ph2 (@annotNodeIds) {				# compare each annotated term node to all other annotated term nodes
           my $lcaHashref = &calculateLCA($ph1, $ph2);
           my %lca = %$lcaHashref;
           foreach my $lca (sort keys %lca) {
+# DEBUG
+# if ($lca eq 'GO:0031224') { print qq(GO:0031224 is LCA of $ph1 and $ph2\n); }
 #             $url = "http://www.wormbase.org/species/all/go_term/$lca";                              # URL to link to wormbase page for object
             $allLca{$lca}++;
-            unless ($phenotypes{$lca}) { 					# only add lca nodes that are not annotated terms
+            unless ($annotationNodeidWhichgene{'annot'}{$lca}) { 					# only add lca nodes that are not annotated terms
               $xlabel = $lca; 					# FIX
               $nodes{$lca}{lca}++;
             }
           } # foreach my $lca (sort keys %lca)
-        } # foreach my $ph2 (@annotPhenotypes)				# compare each annotated term node to all other annotated term nodes
-      } # while (@annotPhenotypes)
+        } # foreach my $ph2 (@annotNodeIds)				# compare each annotated term node to all other annotated term nodes
+      } # while (@annotNodeIds)
     }
 
   my %edgesLca;								# edges that exist in graph generated from annoated terms + lca terms + root
@@ -720,7 +1087,9 @@ sub calculateNodesAndEdges {
     my %edgesPtcCopy = %{ dclone(\%edgesPtc) };				# make a temp copy since edges will be getting deleted per parent
     while (scalar keys %{ $edgesPtcCopy{$parent} } > 0) {		# while parent has children
       foreach my $child (sort keys %{ $edgesPtcCopy{$parent} }) {	# each child of parent
-        if ($allLca{$child} || $phenotypes{$child}) { 			# good node, keep edge when child is an lca or annotated term
+        if ($allLca{$child} || $annotationNodeidWhichgene{'annot'}{$child}) { 			# good node, keep edge when child is an lca or annotated term
+# DEBUG
+# if ($child eq 'GO:0031224') { print qq(CHILD $child allLca $allLca{$child} annotationNodeidWhichgene $annotationNodeidWhichgene{'annot'}{$child} END\n); }
             delete $edgesPtcCopy{$parent}{$child};			# remove from %edgesPtc, does not need to be checked further
             push @parentNodes, $child;					# child is a good node, add to parent list to check its children
             $edgesLca{$parent}{$child}++; }				# add parent-child edge to final graph
@@ -733,17 +1102,7 @@ sub calculateNodesAndEdges {
     } # while (scalar keys %{ $edgesPtcCopy{$parent} } > 0)
   } # while (@parentNodes)
 
-# don't think this does anything, did before for svg at some point
-#   foreach my $parent (sort keys %edgesLca) {
-#     my $parent_placeholder = $parent;
-#     $parent_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-#     foreach my $child (sort keys %{ $edgesLca{$parent} }) {
-#       my $child_placeholder = $child;
-#       $child_placeholder =~ s/:/_placeholderColon_/g;                                  # edges won't have proper title text if ids have : in them
-#     } # foreach my $child (sort keys %{ $edgesLca{$parent} })
-#   } # foreach my $parent (sort keys %edgesLca)
-
-  return ($toReturn, \%nodes, \%edgesLca);
+  return ($toReturn, \%nodes, \%edgesLca, \%annotationNodeidWhichgene, $errorMessage);
 } # sub calculateNodesAndEdges
 
 
@@ -773,7 +1132,11 @@ sub annotSummaryJson {			# temporarily keep this for the live www.wormbase going
 
 sub annotSummaryJsonCode {
   my ($var, $focusTermId)       = &getHtmlVar($query, 'focusTermId');
+  my ($var, $geneOneId)         = &getHtmlVar($query, 'geneOneId');
+  my ($var, $focusTermName)     = &getHtmlVar($query, 'focusTermName');
+  my ($var, $geneOneName)       = &getHtmlVar($query, 'geneOneName');
   my ($var, $datatype)          = &getHtmlVar($query, 'datatype');
+  my ($var, $objectsQvalue)     = &getHtmlVar($query, 'objectsQvalue');
   my ($var, $fakeRootFlag)      = &getHtmlVar($query, 'fakeRootFlag');
   my ($var, $filterLongestFlag) = &getHtmlVar($query, 'filterLongestFlag');
   my ($var, $filterForLcaFlag)  = &getHtmlVar($query, 'filterForLcaFlag');
@@ -790,59 +1153,60 @@ sub annotSummaryJsonCode {
      elsif ($datatype eq 'lifestage') { $rootsChosen = "WBls:0000075";        }
   }
   my (@rootsChosen) = split/,/, $rootsChosen;
-  my ($return, $nodesHashref, $edgesLcaHashref) = &calculateNodesAndEdges($focusTermId, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes);
+  my ($return, $nodesHashref, $edgesLcaHashref, $annotationNodeidWhichgeneHashref, $errorMessage) = &calculateNodesAndEdges($focusTermId, $geneOneId, $objectsQvalue, $datatype, $rootsChosen, $filterForLcaFlag, $maxDepth, $maxNodes);
   if ($return) { print qq(RETURN $return ENDRETURN\n); }
   my %nodes    = %$nodesHashref;
+# foreach my $node (sort keys %nodes) { print qq(RETURNED NODES $node\n); }
   my %edgesLca = %$edgesLcaHashref;
+  my %annotationNodeidWhichgene = ();
+  if ($annotationNodeidWhichgeneHashref) { %annotationNodeidWhichgene = %$annotationNodeidWhichgeneHashref; }
   if ($fakeRootFlag) { 
     if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
       my $fakeRoot = 'GO:0000000';
       $nodes{$fakeRoot}{label} = 'Gene Ontology';
       $nodesAll{$fakeRoot}{label} = 'Gene Ontology';
       foreach my $sub (@rootsChosen) {
-        if ($nodes{$sub}{'counts'}) {					# root must have an annotation to be added
+        if ($nodes{$sub}{'counts'}{'anygene'}{'anytype'}) {		# root must have an annotation to be added
           $edgesLca{$fakeRoot}{$sub}++; }				# any existing edge, parent to child 
   } } }
+
   my @nodes = ();
+
+
   my %rootNodes; 
-  my $rootNodeMaxAnnotationCount = 1;					# max annotation count to calculate node size
+  my %anyRootNodeMaxAnnotationCount;
   foreach my $root (@rootsChosen) { 
-    $rootNodes{$root}++; 						# add to roots hash
-    if ($nodes{$root}{'counts'}{'any'}) {				# find maximum annotation count among roots
-      if ($nodes{$root}{'counts'}{'any'} > $rootNodeMaxAnnotationCount) { 
-        $rootNodeMaxAnnotationCount = $nodes{$root}{'counts'}{'any'}; } } }
+     $rootNodes{$root}++; 						# add to roots hash
+    foreach my $whichGene (sort keys %{ $nodes{$root}{'counts'} }) {
+      if ($nodes{$root}{'counts'}{$whichGene}{'anytype'} > $anyRootNodeMaxAnnotationCount{$whichGene}) { 
+        $anyRootNodeMaxAnnotationCount{$whichGene} = $nodes{$root}{'counts'}{$whichGene}{'anytype'}; } } }
+
+  my %rootNodesTotalAnnotationCount;
+  my @whichGenes = qw( geneOne geneTwo );
+#   my $solr_url = $base_solr_url . $datatype . '/';
+  my $solr_url = $base_solr_url;
+  foreach my $whichGene (@whichGenes) {
+    my $geneId = $geneOneId;
+    if ($whichGene eq 'geneTwo') { $geneId = $focusTermId; }
+    next unless $geneId;
+    if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {		# go with multi roots has a special query Raymond chose to find total annotations for a gene
+        my $total_annotation_count_solr_url = $solr_url . 'select?qt=standard&indent=on&wt=json&version=2.2&rows=100000&fl=regulates_closure,id,annotation_class&q=document_category:annotation&fq=-qualifier:%22not%22&fq=bioentity:%22' . $geneId . '%22';
+        my $page_data   = get $total_annotation_count_solr_url;                                           # get the URL
+#         print qq( total_annotation_count_solr_url $total_annotation_count_solr_url\n);
+        my $perl_scalar = $json->decode( $page_data );                        # get the solr data
+        my %jsonHash    = %$perl_scalar;
+        if ($jsonHash{'response'}{'numFound'} == 0) { 
+            $rootNodesTotalAnnotationCount{$whichGene} = 1;
+            $errorMessage .= qq($geneId total annotation count not found<br/>); }
+          else {
+            $rootNodesTotalAnnotationCount{$whichGene} = $jsonHash{'response'}{'numFound'}; } }
+      else {								# datatypes with one root just take the maximum annotations any node has
+        $rootNodesTotalAnnotationCount{$whichGene} = $anyRootNodeMaxAnnotationCount{$whichGene}; } }
+
   if ($fakeRootFlag) { 
     if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
       $rootNodes{'GO:0000000'}++; } }
   my $diameterMultiplier = 60;
-
-# Original Max Nodes way
-#   if ($maxNodes) {							# only show up to maxNodes amount of nodes
-#     my $count = 0;
-#     my %tempNodes; my %tempEdges;
-#     my (@parentNodes) = split/,/, $rootsChosen;
-#     if ($fakeRootFlag) { @parentNodes = ( 'GO:0000000' ); $maxNodes++; }
-#     
-#     foreach my $node (@parentNodes) {
-#       $count++;
-#       foreach my $type (keys %{ $nodes{$node} }) {
-#         $tempNodes{$node}{$type} = $nodes{$node}{$type}; } }
-#     while ( (scalar @parentNodes > 0) && ($count < $maxNodes) ) {						# while there are parent nodes, go through them
-#       my $parent = shift @parentNodes;					# take a parent
-#       foreach my $child (sort keys %{ $edgesLca{$parent} }) {		# each child of parent
-#         $count++;
-#         foreach my $type (keys %{ $nodes{$child} }) {
-#           $tempNodes{$child}{$type} = $nodes{$child}{$type}; }
-#         push @parentNodes, $child;					# child is a good node, add to parent list to check its children
-#         $tempEdges{$parent}{$child}++;					# add parent-child edge to final graph
-#       } # foreach my $child (sort keys %{ $edgesPtcCopy{$parent} })
-#     } # while (@parentNodes)
-#     %nodes = %{ dclone(\%tempNodes) };
-#     %edgesLca = %{ dclone(\%tempEdges) };
-#   } # if ($maxNodes)
-
-#   my %edgesLcaAllTrimmed = %{ dclone(\%edgesLca) };			# all edges after trimming, before lopping
-
 
   my %edgesFromLongest;							# find edges that belong to the longest path from all nodes to each of their children (to remove indirect nodes, like a grandchild directly to the grandparent, bypassing the parent)
   foreach my $source (sort keys %nodes) {				# for all nodes, calculate longest paths to each child and add to %edgesFromLongest
@@ -909,44 +1273,9 @@ sub annotSummaryJsonCode {
     %edgesLca = %{ dclone(\%lastGoodEdges) };
   } # if ($maxNodes)
 
-# original max depth calculating to max depth and no further, not calculating full depth
-#   if ($maxDepth) {
-#     my $nodeDepth = 1;
-#     my %tempNodes; my %tempEdges;
-#     my %lastGoodNodes; my %lastGoodEdges;
-#     my (@parentNodes) = split/,/, $rootsChosen;
-#     if ($fakeRootFlag) { @parentNodes = ( 'GO:0000000' ); $nodeDepth = 0; }
-#     
-#     foreach my $node (@parentNodes) {
-#       foreach my $type (keys %{ $nodes{$node} }) {
-#         $tempNodes{$node}{$type} = $nodes{$node}{$type}; } }
-#     my @nextLayerParentNodes = ();
-#     while ( (scalar @parentNodes > 0) && ($nodeDepth < $maxDepth) ) {						# while there are parent nodes, go through them
-# # print qq(MAX DEPTH $maxDepth<BR>\n);
-# # print qq(NODE DEPTH $nodeDepth<BR>\n);
-#       my $parent = shift @parentNodes;					# take a parent
-#       foreach my $child (sort keys %{ $edgesLca{$parent} }) {		# each child of parent
-#         $tempEdges{$parent}{$child}++;					# add parent-child edge to final graph
-#         next if (exists $tempNodes{$child});				# skip children already added through other parent
-# #         $count++;
-# #         if ($parent eq 'GO:0000000') { $count--; }			# never count nodes attached to fake root
-# # print qq(NODE CHILD $child PARENT $parent COUNT $count\n);
-#         foreach my $type (keys %{ $nodes{$child} }) {
-#           $tempNodes{$child}{$type} = $nodes{$child}{$type}; }
-#         push @nextLayerParentNodes, $child;					# child is a good node, add to parent list to check its children
-#       } # foreach my $child (sort keys %{ $edgesLca{$parent} }) 
-#       if ( (scalar @parentNodes == 0) && ($nodeDepth < $maxDepth) ) {
-#         $nodeDepth++;
-#         @parentNodes = @nextLayerParentNodes;
-#         @nextLayerParentNodes = ();
-# #         print qq(NODE COUNT $count\n);
-#         %lastGoodNodes = %{ dclone(\%tempNodes) };
-#         %lastGoodEdges = %{ dclone(\%tempEdges) };
-#       }
-#     } # while (@parentNodes)
-#     %nodes = %{ dclone(\%lastGoodNodes) };
-#     %edgesLca = %{ dclone(\%lastGoodEdges) };
-#   }
+# print qq(RC $rootsChosen RC\n);
+# 
+# foreach my $node (sort keys %nodes) { print qq(BEFORE NODES $node\n); }
 
   my $fullDepthFlag = 1;						# calculate the full depth from the graph after lca and longest path
   my $fullDepth = 10;							# initialize to some large depth just in case
@@ -958,34 +1287,38 @@ sub annotSummaryJsonCode {
     if ($fakeRootFlag) { 
       if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
         @parentNodes = ( 'GO:0000000' ); $nodeDepth = 0; } }
+# TO FIX
+#     @parentNodes = ( "GO:0008150", "GO:0005575", "GO:0003674" );
     
     foreach my $node (@parentNodes) {
-# print qq(NODE $node PN @parentNodes\n);
+#   print qq(NODE $node PN @parentNodes\n);
       foreach my $type (keys %{ $nodes{$node} }) {
         $tempNodes{$node}{$type} = $nodes{$node}{$type}; } }
     if ($maxDepth) {						# if there's a max depth requested
+#   print qq(have MAX DEPTH $maxDepth\n);
       if ($nodeDepth == $maxDepth) {				# if requested depth is current depth, save the nodes and edges
+#   print qq(NODE DEPTH $nodeDepth == MAX DEPTH $maxDepth\n);
         %lastGoodNodes = %{ dclone(\%tempNodes) };		# doing this here in the case user wants max depth of 1
-        %lastGoodEdges = %{ dclone(\%tempEdges) }; } }
+        %lastGoodEdges = %{ dclone(\%tempEdges) }; } }		# can't stop processing here, need to get fullDepth
     my @nextLayerParentNodes = ();
     while ( (scalar @parentNodes > 0) ) {						# while there are parent nodes, go through them
-# print qq(MAX DEPTH $maxDepth<BR>\n);
-# print qq(NODE DEPTH $nodeDepth<BR>\n);
+#   print qq(MAX DEPTH $maxDepth<BR>\n);
+#   print qq(NODE DEPTH $nodeDepth<BR>\n);
       my $parent = shift @parentNodes;					# take a parent
-# print qq(PARENT $parent PN @parentNodes\n);
+#   print qq(PARENT $parent PN @parentNodes\n);
       foreach my $child (sort keys %{ $edgesLca{$parent} }) {		# each child of parent
         $tempEdges{$parent}{$child}++;					# add parent-child edge to final graph
         next if (exists $tempNodes{$child});				# skip children already added through other parent
 #         $count++;
 #         if ($parent eq 'GO:0000000') { $count--; }			# never count nodes attached to fake root
-# print qq(NODE CHILD $child PARENT $parent\n);
+#   print qq(NODE CHILD $child PARENT $parent\n);
         foreach my $type (keys %{ $nodes{$child} }) {
           $tempNodes{$child}{$type} = $nodes{$child}{$type}; }
         push @nextLayerParentNodes, $child;					# child is a good node, add to parent list to check its children
-# print qq(ADD $child to next layer\n);
+#   print qq(ADD $child to next layer\n);
       } # foreach my $child (sort keys %{ $edgesLca{$parent} }) 
       if ( (scalar @parentNodes == 0) ) {				# if looked at all parent nodes
-# print qq(DEPTH INCREASE\n);
+#   print qq(DEPTH INCREASE\n);
         $nodeDepth++;							# increase depth
         @parentNodes = @nextLayerParentNodes;				# repopulate from the next layer of parent nodes
         @nextLayerParentNodes = ();					# clean up the next layer of parent nodes
@@ -996,16 +1329,21 @@ sub annotSummaryJsonCode {
             %lastGoodEdges = %{ dclone(\%tempEdges) }; } } }
     } # while (@parentNodes)
     $fullDepth = $nodeDepth - 1;					# node depth went one too many
-    if ($maxDepth > $fullDepth) {					# if a depth higher than full depth is requested, show the whole graph
+    if ($maxDepth > $fullDepth) {                                       # if a depth higher than full depth is requested, show the whole graph
+#   print qq(MaxDepth $maxDepth > fullDepth $fullDepth\n);
       %lastGoodNodes = %{ dclone(\%tempNodes) };
       %lastGoodEdges = %{ dclone(\%tempEdges) }; 
     }
     unless ($maxDepth) {						# if there's no max depth, use the full graph
+#   print qq(unless MaxDepth $maxDepth\n);
+      %lastGoodNodes = %{ dclone(\%tempNodes) };
       %lastGoodNodes = %{ dclone(\%tempNodes) };
       %lastGoodEdges = %{ dclone(\%tempEdges) }; }
     %nodes = %{ dclone(\%lastGoodNodes) };
     %edgesLca = %{ dclone(\%lastGoodEdges) };
   } # if ($fullDepthFlag)
+
+# foreach my $node (sort keys %nodes) { print qq(STILL NODES $node\n); }
 
 
     # 2019 01 29 some nodes have connection to parents in the graph at the same level, but the edges are removed in lopping because lopping doesn't keep going lower.
@@ -1060,19 +1398,36 @@ sub annotSummaryJsonCode {
       push @edges, qq({ "data" : { "id" : "$name", "weight" : 1, "source" : "$cSourceColonless", "target" : "$cTargetColonless", "lineColor" : "$lineColor" } }); } }
   my $edges = join",\n", @edges; 
 
-  my ($goslimIdsRef) = &getGoSlimGoids($datatype);
-  my %goslimIds = %$goslimIdsRef;
+  my %goslimIds;
+  if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
+    my ($goslimIdsRef) = &getGoSlimGoids($datatype);
+    %goslimIds = %$goslimIdsRef; }
 
   foreach my $node (sort keys %nodes) {
-    next unless ( ($nodesWithEdges{$node}) || ($maxDepth == 1) );	# nodes must have an edge unless the depth is only 1
+# print qq(NODE $node hasEdge $nodesWithEdges{$node} mD $maxDepth FRF $fakeRootFlag DT $datatype\n);
+#     next unless ( ($nodesWithEdges{$node}) || ($maxDepth == 1) );	# nodes must have an edge unless the depth is only 1
     my $name = $nodes{$node}{label};
     $name =~ s/ /\\n/g;							# to add linebreaks to node labels
-    my @annotCounts;
-    foreach my $evidenceType (sort keys %{ $nodes{$node}{'counts'} }) {
-      next if ($evidenceType eq 'any');				# skip 'any', only used for relative size to max value
-      push @annotCounts, qq($nodes{$node}{'counts'}{$evidenceType} $evidenceType); }
-    my $annotCounts = join"; ", @annotCounts;
-    my $diameter = $diameterMultiplier * &calcNodeWidth($nodes{$node}{'counts'}{'any'}, $rootNodeMaxAnnotationCount);
+    my $annotCounts = '';
+    foreach my $whichGene (sort keys %{ $nodes{$node}{'counts'} }) {
+      next if ($whichGene eq 'anygene');				# skip 'anygene', only use geneOne / geneTwo
+      my $geneName = $geneOneName; my $wbgene = $geneOneId; my $linkcolour = 'red';
+      if ($whichGene eq 'geneTwo') { $geneName = $focusTermName; $wbgene = $focusTermId; $linkcolour = 'blue'; }
+      $wbgene =~ s/WB://g;
+      $annotCounts .= qq(<a href='https://wormbase.org/species/c_elegans/gene/$wbgene' target='_blank' style='color: $linkcolour'>$geneName</a> - Annotation Count: );
+      my @annotCounts;
+      foreach my $evidenceType (sort keys %{ $nodes{$node}{'counts'}{$whichGene} }) {
+        next if ($evidenceType eq 'anytype');			# skip 'anytype', only used for relative size to max value
+        push @annotCounts, qq($nodes{$node}{'counts'}{$whichGene}{$evidenceType} $evidenceType); }
+      $annotCounts .= join"; ", @annotCounts; 
+# to display ratio
+#       $annotCounts .= qq( \($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $rootNodesTotalAnnotationCount{$whichGene}\));
+      my $annotCountPercentage = int($nodes{$node}{'counts'}{$whichGene}{'anytype'} / $rootNodesTotalAnnotationCount{$whichGene} * 100);
+      $annotCounts .= qq( \(${annotCountPercentage}% of total gene annotations\));
+      $annotCounts .= "<br/>"; }
+
+    my $diameter = $diameterMultiplier * &calcNodeWidth($nodes{$node}{'counts'}{'anygene'}{'anytype'}, $anyRootNodeMaxAnnotationCount{'anygene'});
+# print qq(NODE $node DIAMETER $diameter E\n);
     my $diameter_unweighted = 40;
     my $diameter_weighted = $diameter;
     my $fontSize = $diameter * .2; if ($fontSize < 4) { $fontSize = 4; }
@@ -1086,6 +1441,11 @@ sub annotSummaryJsonCode {
     my $borderWidthRoot_unweighted = 8;				# scaled diameter and fontSize to keep borderWidth the same, but passing values in case we ever want to change them, we won't have to change the cytoscape receiving the json
     my $labelColor = 'black'; if ($node eq 'GO:0000000') { $labelColor = '#fff'; }
     my $backgroundColor = 'white'; 
+# for testing gene one vs gene two by font colour
+#     if ($geneOneId) {
+#       if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'purple'; }
+#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { $labelColor = 'red'; }
+#         elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { $labelColor = 'blue'; } }
     my $nodeExpandable = 'false'; 
 # label nodes green if they have a child it could expand into, not relevant 2019 02 08
 #     foreach my $child (sort keys %{ $edgesLca{$node} }) {               # each child of node
@@ -1095,25 +1455,125 @@ sub annotSummaryJsonCode {
 #         $labelColor = 'green';
 #         $nodeExpandable = 'true'; 
 #     } }
+    
+    my $qvalue = 'not determined';
+    if ($nodes{$node}{'orig_qvalue'}) { $qvalue = $nodes{$node}{'orig_qvalue'}; }
+#     if ($termsQvalue{$node}) { $qvalue = $termsQvalue{$node}; }
+#     $qvalue = '0.0001';
+#     my $qvalueEntry = qq("qvalue" : ") . $qvalue . qq(",);
+ 
+    my $annotCountsQvalue = '';
+    if ($focusTermId) {
+      $annotCountsQvalue = qq("annotCounts" : "$annotCounts", "qvalue" : "undefined");
+    } 
+    elsif ($objectsQvalue) {
+      $annotCountsQvalue = qq("annotCounts" : "undefined", "qvalue" : "$qvalue");
+    }
+
+
+    my $geneOnePieSize                = 0; my $geneOnePieOpacity                = 0.5;  my $geneOnePieColor                = 'red';
+    my $geneTwoPieSize                = 0; my $geneTwoPieOpacity                = 0.5;  my $geneTwoPieColor                = 'blue';
+    my $geneOnePieSizeTotalcount      = 0; my $geneOnePieOpacityTotalcount      = 0.5;  my $geneOnePieColorTotalcount      = 'red';
+    my $geneTwoPieSizeTotalcount      = 0; my $geneTwoPieOpacityTotalcount      = 0.5;  my $geneTwoPieColorTotalcount      = 'blue';
+    my $geneOnePieSizePercentage      = 0; my $geneOnePieOpacityPercentage      = 0.5;  my $geneOnePieColorPercentage      = 'red';
+    my $geneTwoPieSizePercentage      = 0; my $geneTwoPieOpacityPercentage      = 0.5;  my $geneTwoPieColorPercentage      = 'blue';
+    my $geneOneMinusPieSize           = 0; my $geneOneMinusPieOpacity           = 0.3;  my $geneOneMinusPieColor           = 'red';
+    my $geneTwoMinusPieSize           = 0; my $geneTwoMinusPieOpacity           = 0.3;  my $geneTwoMinusPieColor           = 'blue';
+    my $geneOneMinusPieSizeTotalcount = 0; my $geneOneMinusPieOpacityTotalcount = 0.3;  my $geneOneMinusPieColorTotalcount = 'red';
+    my $geneTwoMinusPieSizeTotalcount = 0; my $geneTwoMinusPieOpacityTotalcount = 0.3;  my $geneTwoMinusPieColorTotalcount = 'blue';
+    my $geneOneMinusPieSizePercentage = 0; my $geneOneMinusPieOpacityPercentage = 0.3;  my $geneOneMinusPieColorPercentage = 'white';
+    my $geneTwoMinusPieSizePercentage = 0; my $geneTwoMinusPieOpacityPercentage = 0.3;  my $geneTwoMinusPieColorPercentage = 'white';
+    my $whichGeneHighlight = '';
+    if ($geneOneId) {
+        # slicing by total count
+      $geneOnePieSizeTotalcount   = $nodes{$node}{'counts'}{geneOne}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100;
+      $geneTwoPieSizeTotalcount   = $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $nodes{$node}{'counts'}{'anygene'}{'anytype'} * 100; 
+# uncomment to add variable opacity
+#       my $opacityMultiplier = 0.3;
+#       my $opacityFloor = 0.40;
+#       if ($rootNodesTotalAnnotationCount{geneOne}) {
+#         $geneOnePieOpacityTotalcount = ($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * $opacityMultiplier) + $opacityFloor; }
+#       if ($rootNodesTotalAnnotationCount{geneTwo}) {
+#         $geneTwoPieOpacityTotalcount = ($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * $opacityMultiplier) + $opacityFloor; }
+
+        # slicing by percentage count
+      if ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} && $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
+          $whichGeneHighlight = 'geneBoth';
+#           $geneOneMinusPieColorPercentage = 'yellow'; $geneTwoMinusPieColorPercentage = 'yellow'; 
+          $geneOneMinusPieOpacityPercentage = 1.0; $geneTwoMinusPieOpacityPercentage = 1.0; }
+        elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneOne'} ) { 
+#           $geneOneMinusPieColorPercentage = 'red'; $geneTwoMinusPieColorPercentage = 'red';
+          $whichGeneHighlight = 'geneOne'; }
+        elsif ( $annotationNodeidWhichgene{'any'}{$node}{'geneTwo'} ) { 
+#           $geneOneMinusPieColorPercentage = 'blue'; $geneTwoMinusPieColorPercentage = 'blue';
+          $whichGeneHighlight = 'geneTwo'; }
+      if ($rootNodesTotalAnnotationCount{geneOne}) {
+#         $geneOnePieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne} * 5); 	# 10% chunks
+        $geneOnePieSizePercentage      = 50 * $nodes{$node}{'counts'}{geneOne}{'anytype'} / $rootNodesTotalAnnotationCount{geneOne}; }
+      if ($rootNodesTotalAnnotationCount{geneTwo}) {
+#         $geneTwoPieSizePercentage      = 10 * ceil($nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo} * 5); 	# 10% chunks
+        $geneTwoPieSizePercentage      = 50 * $nodes{$node}{'counts'}{geneTwo}{'anytype'} / $rootNodesTotalAnnotationCount{geneTwo}; }
+      $geneOneMinusPieSizePercentage = 50 - $geneOnePieSizePercentage;
+      $geneTwoMinusPieSizePercentage = 50 - $geneTwoPieSizePercentage;
+
+        # initialize values to total count
+      $geneOnePieSize         = $geneOnePieSizeTotalcount;
+      $geneTwoPieSize         = $geneTwoPieSizeTotalcount;
+      $geneOnePieOpacity      = $geneOnePieOpacityTotalcount;
+      $geneTwoPieOpacity      = $geneTwoPieOpacityTotalcount;
+      $geneOnePieColor        = $geneOnePieColorTotalcount;
+      $geneTwoPieColor        = $geneTwoPieColorTotalcount;
+      $geneOneMinusPieSize    = $geneOneMinusPieSizeTotalcount;
+      $geneTwoMinusPieSize    = $geneTwoMinusPieSizeTotalcount;
+      $geneOneMinusPieOpacity = $geneOneMinusPieOpacityTotalcount;
+      $geneTwoMinusPieOpacity = $geneTwoMinusPieOpacityTotalcount;
+      $geneOneMinusPieColor   = $geneOneMinusPieColorTotalcount;
+      $geneTwoMinusPieColor   = $geneTwoMinusPieColorTotalcount;
+    } # if ($geneOneId)
+
+
+
+#     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneTwoPieSize" : $geneTwoPieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneTwoPieOpacity" : $geneTwoPieOpacity);
+#     my $pieInfo = qq(, "geneOnePieSize" : $geneOnePieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneOnePieColor" : "$geneOnePieColor", "geneOneMinusPieSize" : $geneOneMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneOneMinusPieColor" : "$geneOneMinusPieColor", "geneTwoPieSize" : $geneTwoPieSize, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneTwoPieColor" : "$geneTwoPieColor", "geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity, "geneTwoMinusPieColor" : "$geneTwoMinusPieColor");
+    my $pieInfo = qq(, );
+    $pieInfo .= qq("whichGeneHighlight" : "$whichGeneHighlight", );
+    $pieInfo .= qq("geneOnePieSize" : $geneOnePieSize, "geneOnePieOpacity" : $geneOnePieOpacity, "geneOnePieColor" : "$geneOnePieColor", );
+    $pieInfo .= qq("geneTwoPieSize" : $geneTwoPieSize, "geneTwoPieOpacity" : $geneTwoPieOpacity, "geneTwoPieColor" : "$geneTwoPieColor", );
+    $pieInfo .= qq("geneOnePieSizeTotalcount" : $geneOnePieSizeTotalcount, "geneOnePieOpacityTotalcount" : $geneOnePieOpacityTotalcount, "geneOnePieColorTotalcount" : "$geneOnePieColorTotalcount", );
+    $pieInfo .= qq("geneTwoPieSizeTotalcount" : $geneTwoPieSizeTotalcount, "geneTwoPieOpacityTotalcount" : $geneTwoPieOpacityTotalcount, "geneTwoPieColorTotalcount" : "$geneTwoPieColorTotalcount", );
+    $pieInfo .= qq("geneOnePieSizePercentage" : $geneOnePieSizePercentage, "geneOnePieOpacityPercentage" : $geneOnePieOpacityPercentage, "geneOnePieColorPercentage" : "$geneOnePieColorPercentage", );
+    $pieInfo .= qq("geneOneMinusPieSize" : $geneOneMinusPieSize, "geneOneMinusPieOpacity" : $geneOneMinusPieOpacity, "geneOneMinusPieColor" : "$geneOneMinusPieColor", );
+    $pieInfo .= qq("geneTwoMinusPieSize" : $geneTwoMinusPieSize, "geneTwoMinusPieOpacity" : $geneTwoMinusPieOpacity, "geneTwoMinusPieColor" : "$geneTwoMinusPieColor", );
+    $pieInfo .= qq("geneTwoPieSizePercentage" : $geneTwoPieSizePercentage, "geneTwoPieOpacityPercentage" : $geneTwoPieOpacityPercentage, "geneTwoPieColorPercentage" : "$geneTwoPieColorPercentage", );
+    $pieInfo .= qq("geneOneMinusPieSizeTotalcount" : $geneOneMinusPieSizeTotalcount, "geneOneMinusPieOpacityTotalcount" : $geneOneMinusPieOpacityTotalcount, "geneOneMinusPieColorTotalcount" : "$geneOneMinusPieColorTotalcount", );
+    $pieInfo .= qq("geneTwoMinusPieSizeTotalcount" : $geneTwoMinusPieSizeTotalcount, "geneTwoMinusPieOpacityTotalcount" : $geneTwoMinusPieOpacityTotalcount, "geneTwoMinusPieColorTotalcount" : "$geneTwoMinusPieColorTotalcount", );
+    $pieInfo .= qq("geneOneMinusPieSizePercentage" : $geneOneMinusPieSizePercentage, "geneOneMinusPieOpacityPercentage" : $geneOneMinusPieOpacityPercentage, "geneOneMinusPieColorPercentage" : "$geneOneMinusPieColorPercentage", );
+    $pieInfo .= qq("geneTwoMinusPieSizePercentage" : $geneTwoMinusPieSizePercentage, "geneTwoMinusPieOpacityPercentage" : $geneTwoMinusPieOpacityPercentage, "geneTwoMinusPieColorPercentage" : "$geneTwoMinusPieColorPercentage");
 
     my $cytId = $node; $cytId =~ s/://;
+#     my $nodeColor  = 'blue';  	# to colour code nodes by direct vs inferred
+    my $nodeColor  = 'black';  
     if ($rootNodes{$node}) {
-      next unless ($nodes{$node}{'counts'});			# only add a root if it has annotations
-      my $nodeColor  = 'blue';  if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
-      if ($goslimIds{$node}) { $backgroundColor = $nodeColor; }
+        next unless (($nodes{$node}{'counts'}{'anygene'}{'anytype'}) || ($objectsQvalue)); 	# only add a root if it has annotations or is soba by ontology terms, which don't have annoatations
+        if ($node eq 'GO:0000000') { $nodeColor  = '#fff'; }
+        if ( ($goslimIds{$node}) && !($geneOneId) ) { $backgroundColor = $nodeColor; }
 # print qq(ROOT NODE $node\n);
+        unless ($geneOneId) { $nodeColor = 'blue'; }					# to colour code nodes by direct vs inferred
 #         $node =~ s/GO://; 
-        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable" } }); }
+        my $annotationDirectness = 'inferred'; if ($nodes{$node}{annot}) { $annotationDirectness = 'direct'; $nodeColor = 'red'; }
+        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "$annotationDirectness", "borderWidthUnweighted" : "$borderWidthRoot_unweighted", "borderWidthWeighted" : "$borderWidthRoot_weighted", "borderWidth" : "$borderWidthRoot", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "rectangle", "nodeExpandable" : "$nodeExpandable" $pieInfo } }); }
       elsif ($nodes{$node}{lca}) {
 # print qq(LCA NODE $node\n);
-        if ($goslimIds{$node}) { $backgroundColor = 'blue'; }
+        if ( ($goslimIds{$node}) && !($geneOneId) ) { $backgroundColor = 'blue'; }
+        unless ($geneOneId) { $nodeColor = 'blue'; }					# to colour code nodes by direct vs inferred
 #         $node =~ s/GO://; 
-        push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "blue", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });   }
+          push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "dashed", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "inferred", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });   }
       elsif ($nodes{$node}{annot}) {
 # print qq(ANNOT NODE $node\n);
-         if ($goslimIds{$node}) { $backgroundColor = 'red'; }
+        if ( ($goslimIds{$node}) && !($geneOneId) ) { $backgroundColor = 'red'; }
+        unless ($geneOneId) { $nodeColor = 'red'; }					# to colour code nodes by direct vs inferred
 #          $node =~ s/GO://; 
-         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", "annotCounts" : "$annotCounts", "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "red", "annotationDirectness" : "direct", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" } });     } 
+         push @nodes, qq({ "data" : { "id" : "$cytId", "objId" : "$node", "name" : "$name", $annotCountsQvalue, "borderStyle" : "solid", "labelColor" : "$labelColor", "nodeColor" : "$nodeColor", "annotationDirectness" : "direct", "borderWidthUnweighted" : "$borderWidth_unweighted", "borderWidthWeighted" : "$borderWidth_weighted", "borderWidth" : "$borderWidth", "fontSizeUnweighted" : "$fontSize_unweighted", "fontSizeWeighted" : "$fontSize_weighted", "fontSize" : "$fontSize", "diameter" : $diameter, "diameter_weighted" : $diameter_weighted, "diameter_unweighted" : $diameter_unweighted, "backgroundColor" : "$backgroundColor", "nodeShape" : "ellipse", "nodeExpandable" : "$nodeExpandable" $pieInfo } });     } 
       else {
 # print qq(OTHER NODE $node\n); 
     }
@@ -1122,10 +1582,24 @@ sub annotSummaryJsonCode {
   unless (scalar @nodes > 0) { 
     if ($fakeRootFlag) { 
       if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
-        push @nodes, qq({ "data" : { "id" : "GO:0000000", "name" : "Gene Ontology", "annotCounts" : "", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" } }); } } }
+        push @nodes, qq({ "data" : { "id" : "GO:0000000", "name" : "Gene Ontology", "annotCounts" : "", "qvalue" : "", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" } }); } } }
 
   unless (scalar @nodes > 0) { 
-    push @nodes, qq({ "data" : { "id" : "No Annotations", "name" : "No Annotations", "annotCounts" : "1", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" } }); }
+    my $pieInfo = qq(, );
+    $pieInfo .= qq("whichGeneHighlight" : "geneBoth", );
+    $pieInfo .= qq("geneOnePieSize" : 100, "geneOnePieOpacity" : 1, "geneOnePieColor" : "blue", );
+    $pieInfo .= qq("geneTwoPieSize" : 0, "geneTwoPieOpacity" : 0, "geneTwoPieColor" : "blue", );
+    $pieInfo .= qq("geneOnePieSizeTotalcount" : 100, "geneOnePieOpacityTotalcount" : 1, "geneOnePieColorTotalcount" : "blue", );
+    $pieInfo .= qq("geneTwoPieSizeTotalcount" : 0, "geneTwoPieOpacityTotalcount" : 0, "geneTwoPieColorTotalcount" : "blue", );
+    $pieInfo .= qq("geneOnePieSizePercentage" : 100, "geneOnePieOpacityPercentage" : 1, "geneOnePieColorPercentage" : "blue", );
+    $pieInfo .= qq("geneOneMinusPieSize" : 0, "geneOneMinusPieOpacity" : 0, "geneOneMinusPieColor" : "blue", );
+    $pieInfo .= qq("geneTwoMinusPieSize" : 0, "geneTwoMinusPieOpacity" : 0, "geneTwoMinusPieColor" : "blue", );
+    $pieInfo .= qq("geneTwoPieSizePercentage" : 0, "geneTwoPieOpacityPercentage" : 0, "geneTwoPieColorPercentage" : "blue", );
+    $pieInfo .= qq("geneOneMinusPieSizeTotalcount" : 0, "geneOneMinusPieOpacityTotalcount" : 0, "geneOneMinusPieColorTotalcount" : "blue", );
+    $pieInfo .= qq("geneTwoMinusPieSizeTotalcount" : 0, "geneTwoMinusPieOpacityTotalcount" : 0, "geneTwoMinusPieColorTotalcount" : "blue", );
+    $pieInfo .= qq("geneOneMinusPieSizePercentage" : 0, "geneOneMinusPieOpacityPercentage" : 0, "geneOneMinusPieColorPercentage" : "blue", );
+    $pieInfo .= qq("geneTwoMinusPieSizePercentage" : 0, "geneTwoMinusPieOpacityPercentage" : 0, "geneTwoMinusPieColorPercentage" : "blue");
+    push @nodes, qq({ "data" : { "id" : "No Annotations", "name" : "No Annotations", "annotCounts" : "1", "qvalue" : "", "borderStyle" : "dashed", "labelColor" : "#888", "nodeColor" : "#888", "borderWidthUnweighted" : "8", "borderWidthWeighted" : "8", "borderWidth" : "8", "fontSizeUnweighted" : "6", "fontSizeWeighted" : "4", "fontSize" : "4", "diameter" : 0.6, "diameter_weighted" : 0.6, "diameter_unweighted" : 40, "backgroundColor" : "white", "nodeShape" : "rectangle" $pieInfo } }); }
 
   my $ucfirstDatatype = ucfirst($datatype);
   my $nodes = join",\n", @nodes; 
@@ -1136,7 +1610,7 @@ sub annotSummaryJsonCode {
   print qq("edges" : [\n);
   print qq($edges\n);
   print qq(]\n);
-  print qq(, "meta" : { "fullDepth" : $fullDepth, "focusTermId" : "$focusTermId", "urlBase" : "https://${hostname}.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJsonp&focusTermId=${focusTermId}&datatype=${ucfirstDatatype}" } } }\n);
+  print qq(, "meta" : { "fullDepth" : $fullDepth, "focusTermId" : "$focusTermId", "urlBase" : "https://${hostname}.caltech.edu/~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryJsonp&focusTermId=${focusTermId}&datatype=${ucfirstDatatype}", "errorMessage" : "$errorMessage" } } }\n);
 } # sub annotSummaryJsonCode
 
 sub recurseAncestorsToAddEdges {		# for a given node in the graph after longest path and trimming, check its parents, if a parent is in the graph then link it to the given node, otherwise check the grandparents to link to original node, recurse.
@@ -1162,13 +1636,14 @@ sub recurseAncestorsToAddEdges {		# for a given node in the graph after longest 
         return $tempEdgesHref; }
   }
   return \%tempEdges;
-}
+} # sub recurseAncestorsToAddEdges 
 
 
 sub getGoSlimGoids {
   my ($datatype) = @_;
   my %goslimIds;
-  my $goslimUrl = $base_solr_url . $datatype . '/select?qt=standard&fl=id,annotation_class_label,topology_graph_json,subset&version=2.2&wt=json&indent=on&rows=1000&q=*:*&fq=document_category:%22ontology_class%22&fq=subset:%22goslim_agr%22';
+#   my $goslimUrl = $base_solr_url . $datatype . '/select?qt=standard&fl=id,annotation_class_label,topology_graph_json,subset&version=2.2&wt=json&indent=on&rows=1000&q=*:*&fq=document_category:%22ontology_class%22&fq=subset:%22goslim_agr%22';
+  my $goslimUrl = $base_solr_url . 'select?qt=standard&fl=id,annotation_class_label,topology_graph_json,subset&version=2.2&wt=json&indent=on&rows=1000&q=*:*&fq=document_category:%22ontology_class%22&fq=subset:%22goslim_agr%22';
   my $goslimData = get $goslimUrl;
   my $perl_scalar = $json->decode( $goslimData );
   my %goslimHash = %$perl_scalar;
@@ -1182,10 +1657,12 @@ sub getGoSlimGoids {
 
 sub annotSummaryCytoscape {
 # /~azurebrd/cgi-bin/amigo.cgi?action=annotSummaryCytoscape&focusTermId=WBGene00000899
-  my ($all_roots) = @_;
+  my ($processType) = @_;
   my ($var, $focusTermId)          = &getHtmlVar($query, 'focusTermId');
   ($var, my $autocompleteValue)    = &getHtmlVar($query, 'autocompleteValue');
+  ($var, my $geneOneValue)         = &getHtmlVar($query, 'geneOneValue');
   ($var, my $datatype)             = &getHtmlVar($query, 'datatype');
+  ($var, my $radio_datatype)       = &getHtmlVar($query, 'radio_datatype');
   ($var, my $showControlsFlag)     = &getHtmlVar($query, 'showControlsFlag');
   ($var, my $fakeRootFlag)         = &getHtmlVar($query, 'fakeRootFlag');
   ($var, my $filterLongestFlag)    = &getHtmlVar($query, 'filterLongestFlag');
@@ -1201,6 +1678,9 @@ sub annotSummaryCytoscape {
   ($var, my $root_bp)              = &getHtmlVar($query, 'root_bp');
   ($var, my $root_mf)              = &getHtmlVar($query, 'root_mf');
   ($var, my $root_cc)              = &getHtmlVar($query, 'root_cc');
+  ($var, my $objectsQvalue)        = &getHtmlVar($query, 'objectsQvalue');
+  unless ($datatype) { $datatype = $radio_datatype; }
+  my $encodedObjectsQvalue         = uri_encode($objectsQvalue);
   my $toPrint = ''; my $return = '';
   my $checked_radio_etp_all      = 'checked="checked"'; my $checked_radio_etp_onlyrnai = '';    my $checked_radio_etp_onlyvariation = '';
   if ($radio_etp eq 'radio_etp_onlyvariation') { $checked_radio_etp_all = ''; $checked_radio_etp_onlyvariation = 'checked="checked"'; }
@@ -1214,44 +1694,109 @@ sub annotSummaryCytoscape {
   if ($radio_eta eq 'radio_eta_onlyexprpattern') {      $checked_radio_eta_all = ''; $checked_radio_eta_onlyexprpattern = 'checked="checked"'; }
     elsif ($radio_eta eq 'radio_eta_onlyexprcluster') { $checked_radio_eta_all = ''; $checked_radio_eta_onlyexprcluster = 'checked="checked"'; }
   my $checked_root_bp = ''; my $checked_root_cc = ''; my $checked_root_mf = ''; 
+my $debugText = '';
+
+  my $legendBlueNodeText = 'Without Direct Annotation';
+  my $legendRedNodeText = 'With Direct Annotation';
+  my $legendBlueFilledNodeText = 'Alliance Slim Without Direct Annotation';
+  my $legendRedFilledNodeText = 'Alliance Slim With Direct Annotation';
+  my $legendWeightstateWeighted = 'Weighted';
+  my $legendWeightstateUnweighted = 'Uniform';
+#   my $legendPietypeTotalcount = 'Pie Slice Total counts';
+#   my $legendPietypePercentage = 'Pie Slice Percentage';
+  my $legendPietypeTotalcount = 'Absolute count slices';
+  my $legendPietypePercentage = 'Relative count slices';
+  my $legendSkipEvidenceStart = '';
+  my $legendSkipEvidenceEnd = '';
+  my $analyzePairsText = '';
+  my %termsQvalue;
+  if ($processType eq 'source_ontology') {
+    my ($is_ok, $termsQvalue_datatype, $termsQvalueHref) = &validateListTermsQvalue($objectsQvalue);
+    if ($is_ok) {
+#         $analyzePairsText .= qq(DATATYPE $termsQvalue_datatype<br>\n);
+        %termsQvalue = %$termsQvalueHref;
+        $datatype = $termsQvalue_datatype; }
+      else { $analyzePairsText .= qq(Terms did not validate properly. $termsQvalue_datatype<br>\n); }
+    $legendBlueNodeText = 'Inferred Term';
+    $legendRedNodeText = 'Enriched Term';
+    $legendBlueFilledNodeText = 'Inferred Alliance Slim Term';
+    $legendRedFilledNodeText = 'Enriched Alliance Slim Term';
+    $legendWeightstateWeighted = 'Significance weighted';
+    $legendWeightstateUnweighted = 'Significance unweighted';
+    $legendSkipEvidenceStart = '<!--';
+    $legendSkipEvidenceEnd = '-->';
+  }
+
+
   my @roots;
+# $debugText .= "DATATYPE $datatype E<br>\n"; 
   if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
-     if ($all_roots eq 'all_roots') { 
-         $fakeRootFlag = 0; $filterLongestFlag = 1; $filterForLcaFlag = 1; $maxNodes = 0; $maxDepth = 0;
+# $debugText .= "IN DATATYPE $datatype E<br>\n"; 
+#          $fakeRootFlag = 0; $filterLongestFlag = 1; $filterForLcaFlag = 1; $maxNodes = 0; $maxDepth = 0;	# not sure why it was doing this
          push @roots, "GO:0008150"; push @roots, "GO:0005575"; push @roots, "GO:0003674";
-         $checked_root_bp = 'checked="checked"'; $checked_root_cc = 'checked="checked"'; $checked_root_mf = 'checked="checked"'; }
-       else {
-         if ($root_bp) { $checked_root_bp = 'checked="checked"'; push @roots, $root_bp; }
-         if ($root_cc) { $checked_root_cc = 'checked="checked"'; push @roots, $root_cc; }
-         if ($root_mf) { $checked_root_mf = 'checked="checked"'; push @roots, $root_mf; } } }
+         $checked_root_bp = 'checked="checked"'; $checked_root_cc = 'checked="checked"'; $checked_root_mf = 'checked="checked"';
+# not sure why was doing this
+#      if ($all_roots eq 'all_roots') {
+#          $fakeRootFlag = 0; $filterLongestFlag = 1; $filterForLcaFlag = 1; $maxNodes = 0; $maxDepth = 0;
+#          push @roots, "GO:0008150"; push @roots, "GO:0005575"; push @roots, "GO:0003674";
+#          $checked_root_bp = 'checked="checked"'; $checked_root_cc = 'checked="checked"'; $checked_root_mf = 'checked="checked"'; }
+#        else {
+#          if ($root_bp) { $checked_root_bp = 'checked="checked"'; push @roots, $root_bp; }
+#          if ($root_cc) { $checked_root_cc = 'checked="checked"'; push @roots, $root_cc; }
+#          if ($root_mf) { $checked_root_mf = 'checked="checked"'; push @roots, $root_mf; } }
+ }
     elsif ($datatype eq 'phenotype') { push @roots, "WBPhenotype:0000886"; }
     elsif ($datatype eq 'anatomy')   { push @roots, "WBbt:0000100";        }
     elsif ($datatype eq 'disease')   { push @roots, "DOID:4";              }
     elsif ($datatype eq 'lifestage') { push @roots, "WBls:0000075";        }
   my $roots = join",", @roots;
 
-  unless ($focusTermId) {
-    ($focusTermId) = $autocompleteValue =~ m/, (.*?),/;
-  }
+#   if ($processType eq 'source_gene') {
+  my $geneOneId = '';
+  unless ($focusTermId) { ($focusTermId) = $autocompleteValue =~ m/, (.*?),/; }		# autocomplete format from solr query for biggo only
+  unless ($geneOneId) {   ($geneOneId)   = $geneOneValue      =~ m/, (.*?),/; }		# autocomplete format from solr query for biggo only
+  unless ($focusTermId) { if ($autocompleteValue =~ m/\( (.*?) \)/) { $focusTermId = 'WB:' . $1; } }		# autocomplete format from tazendra OA query
+  unless ($geneOneId) {   if ($geneOneValue =~ m/\( (.*?) \)/)      { $geneOneId   = 'WB:' . $1; } }		# autocomplete format from tazendra OA query
+#   }
 
   my $goslimButtons = '<a href="http://geneontology.org/docs/go-subset-guide/" target="_blank">Alliance Slim terms</a> in graph:<br/>';
-  my ($goslimIdsRef) = &getGoSlimGoids($datatype);
-  my %goslimIds = %$goslimIdsRef;
-  foreach my $goid (sort keys %goslimIds) {
-    my $goname = $goslimIds{$goid};
-#     $goid =~ s/GO://;
-    my $button      = qq(<span id="$goid" style="display: none">- $goname<br/></span>);
-    $goslimButtons .= qq($button);
-  } # foreach my $goid (sort keys %goslimIds)
+  my %goslimIds;
+  if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) {
+    my ($goslimIdsRef) = &getGoSlimGoids($datatype);
+    %goslimIds = %$goslimIdsRef;
+    foreach my $goid (sort keys %goslimIds) {
+      my $goname = $goslimIds{$goid};
+#       $goid =~ s/GO://;
+      my $button      = qq(<span id="$goid" style="display: none">- $goname<br/></span>);
+      $goslimButtons .= qq($button);
+    } # foreach my $goid (sort keys %goslimIds)
+  }
 
+  my $withoutDirectLegendNodeColor = 'blue';
+  my $withDirectLegendNodeColor    = 'red';
 # FIX
-
+#   $focusTermId = 'WB:WBGene00001135';
   my $jsonUrl = 'soba_biggo.cgi?action=annotSummaryJson&focusTermId=' . $focusTermId . '&datatype=' . $datatype;
+  my $geneOneName = ''; my $focusTermName = '';
+  my $legendtitlediv = '';
+  my ($infogif) = &getInfoGif();
+  if ($processType eq 'source_ontology') {
+      $legendtitlediv = qq(<h3>SObA Terms - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#List_of_terms" target="_blank">$infogif</a></h3>\n);
+#       $jsonUrl = 'soba_biggo.cgi?action=annotSummaryJson&objectsQvalue=' . uri_encode($objectsQvalue) . '&datatype=' . $datatype;
+      $jsonUrl = 'soba_biggo.cgi?action=annotSummaryJson&objectsQvalue=' . $encodedObjectsQvalue . '&datatype=' . $datatype; }
+    elsif ($geneOneId) {
+      $legendtitlediv = qq(<h3>SObA Gene Pair - $datatype <a href="https://wiki.wormbase.org/index.php/User_Guide/SObA#Pair_of_genes" target="_blank">$infogif</a></h3>\n);
+      $withoutDirectLegendNodeColor = 'black';
+      $withDirectLegendNodeColor    = 'black';
+      ($focusTermName) = $autocompleteValue =~ m/^(.*) \(/;
+      ($geneOneName)   = $geneOneValue      =~ m/^(.*) \(/;
+      $jsonUrl = 'soba_biggo.cgi?action=annotSummaryJson&geneOneId=' . $geneOneId . '&focusTermId=' . $focusTermId . '&geneOneName=' . $geneOneName . '&focusTermName=' . $focusTermName . '&datatype=' . $datatype; }
   if ( ($datatype eq 'go') || ($datatype eq 'biggo') ) { $jsonUrl .= '&radio_etgo=' . $radio_etgo . '&rootsChosen=' . $roots; }
     elsif ($datatype eq 'phenotype') {                   $jsonUrl .= '&radio_etp='  . $radio_etp;                             }
     elsif ($datatype eq 'disease') {                     $jsonUrl .= '&radio_etd='  . $radio_etd;                             }
     elsif ($datatype eq 'anatomy') {                     $jsonUrl .= '&radio_eta='  . $radio_eta;                             }
-  unless ($showControlsFlag) { $showControlsFlag = 0; }
+  if ($showControlsFlag) { $showControlsFlag = 1; }			# to prevent injection of javascript through variable
+    else { $showControlsFlag = 0; }
   $jsonUrl .= "&showControlsFlag=$showControlsFlag";
   unless ($fakeRootFlag) { $fakeRootFlag = 0; }
   $jsonUrl .= "&fakeRootFlag=$fakeRootFlag";
@@ -1263,6 +1808,7 @@ sub annotSummaryCytoscape {
   $jsonUrl .= "&maxNodes=$maxNodes";
   unless ($maxDepth) { $maxDepth = 0; }
   $jsonUrl .= "&maxDepth=$maxDepth";
+#   $jsonUrl = 'soba_biggo.cgi';                  # for post
   my $checked_showControls = ''; my $checked_fakeRoot = ''; my $checked_filterLca = ''; my $checked_filterLongest = ''; my $checked_nodeCount = '';
   my $displayControlMenu = 'none';		# by default don't show controls
   if ($showControlsFlag) {
@@ -1274,23 +1820,28 @@ sub annotSummaryCytoscape {
   if ($filterLongestFlag) { $checked_filterLongest = 'checked="checked"'; }
   my $show_node_count = 'none';
   if ($nodeCountFlag)     { $show_node_count = ''; }
+
+  my $title = qq(<title>$roots $focusTermId Cytoscape view</title>);
+  &printHtmlHeader($title);
+# Content-type: text/html\n
+# <!DOCTYPE html>
+# <html>
+# <head>
   print << "EndOfText";
-Content-type: text/html\n
-<!DOCTYPE html>
-<html>
-<head>
 <link href="/~azurebrd/work/cytoscape/style.css" rel="stylesheet" />
 <link href="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.css" rel="stylesheet" type="text/css" />
 <meta charset=utf-8 />
 <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
-<title>$focusTermId Cytoscape view</title>
+<!--<title>$roots $focusTermId Cytoscape view</title>--><!-- put back if removing wormbase style header -->
 
 
 <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
 
-<script src="/~azurebrd/javascript/cytoscape.min.js"></script>
-
-<script src="/~azurebrd/javascript/dagre.min.js"></script>
+<!--<script src="/~azurebrd/javascript/cytoscape.min.js"></script>-->
+<script type="text/javascript" src="javascript/cytoscape.min.js"></script>
+ 
+<!--<script src="/~azurebrd/javascript/dagre.min.js"></script>-->
+<script type="text/javascript" src="javascript/dagre.min.js"></script>
 <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.1.2/cytoscape-dagre.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.js"></script>
@@ -1299,11 +1850,26 @@ Content-type: text/html\n
 <script type="text/javascript">
 \$(function(){
   // get exported json from cytoscape desktop via ajax
+  var data = { action: "annotSummaryJson", datatype: "$datatype" };
+  if ('$processType' === 'source_gene')   {                  data["focusTermId"]       = "$focusTermId"; } 
+    else if ('$processType' === 'source_ontology') {         data["objectsQvalue"]     = "$encodedObjectsQvalue"; } 
+  if ('$geneOneId' !== '') {                                 data["geneOneId"]         = "$geneOneId"; }
+  if (('$datatype' === 'go') || ('$datatype' === 'biggo')) { data["radio_etgo"]        = "$radio_etgo"; data["rootsChosen"] = "$roots"; }
+    else if ('$datatype' === 'phenotype') {                  data["radio_etp"]         = "$radio_etp"; }
+    else if ('$datatype' === 'disease') {                    data["radio_etd"]         = "$radio_etd"; }
+    else if ('$datatype' === 'anatomy') {                    data["radio_eta"]         = "$radio_eta"; }
+  if ($showControlsFlag !== 0) {                             data["showControlsFlag"]  = "$showControlsFlag"; }
+  if ($fakeRootFlag !== 0) {                                 data["fakeRootFlag"]      = "$fakeRootFlag"; }
+  if ($filterForLcaFlag !== 0) {                             data["filterForLcaFlag"]  = "$filterForLcaFlag"; }
+  if ($filterLongestFlag !== 0) {                            data["filterLongestFlag"] = "$filterLongestFlag"; }
+  if ($maxNodes !== 0) {                                     data["maxNodes"]          = "$maxNodes"; }
+  if ($maxDepth !== 0) {                                     data["maxDepth"]          = "$maxDepth"; }
   var graphP = \$.ajax({
     url: '$jsonUrl',
     type: 'GET',
     dataType: 'json'
   });
+//     data: data,
 
   Promise.all([ graphP ]).then(initCy);
 
@@ -1332,11 +1898,15 @@ Content-type: text/html\n
   function initCy( then ){
     var elements = then[0].elements;
     \$('#controldiv').show(); \$('#loadingdiv').hide();	// show controls and hide loading when graph loaded
+    if ('$geneOneId' !== '') {
+        \$('#whichgenehighlight').show();
+        \$('#pietype').show(); }
     if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) {
-        \$('#trAllianceSlimWith').show(); 
-        \$('#trAllianceSlimWithout').show(); 
+         if ('$geneOneId' === '') {
+          \$('#trAllianceSlimWith').show(); 
+          \$('#trAllianceSlimWithout').show(); 
+          \$('#goSlimDiv').show(); }
         \$('#evidencetypego').show(); 
-        \$('#goSlimDiv').show(); 
         \$('#rootschosen').show(); }
       else if ( '$datatype' === 'disease') { 
         \$('#evidencetypedisease').show(); }
@@ -1346,7 +1916,7 @@ Content-type: text/html\n
         \$('#evidencetypeanatomy').show(); }
     var cyPhenGraph = window.cyPhenGraph = cytoscape({
       container: document.getElementById('cyPhenGraph'),
-      layout: { name: 'dagre', padding: 10, nodeSep: 5 },
+      layout: { name: 'dagre', padding: 10, nodeSep: 1, edgeSep: 1, rankSep: 5 },
       style: cytoscape.stylesheet()
         .selector('node')
           .css({
@@ -1354,6 +1924,19 @@ Content-type: text/html\n
             'background-color': 'data(backgroundColor)',
             'color': 'data(labelColor)',
             'shape': 'data(nodeShape)',
+            'pie-size': '90%',
+            'pie-1-background-color': 'data(geneOnePieColor)',
+            'pie-1-background-size': 'mapData(geneOnePieSize, 0, 100, 0, 100)',
+            'pie-1-background-opacity': 'data(geneOnePieOpacity)',
+            'pie-2-background-color': 'data(geneOneMinusPieColor)',
+            'pie-2-background-size': 'mapData(geneOneMinusPieSize, 0, 100, 0, 100)',
+            'pie-2-background-opacity': 'data(geneOneMinusPieOpacity)',
+            'pie-4-background-color': 'data(geneTwoPieColor)',
+            'pie-4-background-size': 'mapData(geneTwoPieSize, 0, 100, 0, 100)',
+            'pie-4-background-opacity': 'data(geneTwoPieOpacity)',
+            'pie-3-background-color': 'data(geneTwoMinusPieColor)',
+            'pie-3-background-size': 'mapData(geneTwoMinusPieSize, 0, 100, 0, 100)',
+            'pie-3-background-opacity': 'data(geneTwoMinusPieOpacity)',
             'border-color': 'data(nodeColor)',
             'border-style': 'data(borderStyle)',
             'border-width': 'data(borderWidth)',
@@ -1362,7 +1945,8 @@ Content-type: text/html\n
             'text-valign': 'center',
             'text-wrap': 'wrap',
 //             'min-zoomed-font-size': 8,		// FIX PUT THIS BACK
-            'border-opacity': 0.3,
+//             'border-opacity': 0.3,
+            'border-opacity': 0.5,
             'background-opacity': 0.3,
             'font-size': 'data(fontSize)'
           })
@@ -1395,6 +1979,9 @@ Content-type: text/html\n
         window.cyPhenGraph = this;
         cyPhenGraph.elements().unselectify();
 
+        var errorMessage = then[0].elements.meta.errorMessage;
+        document.getElementById('jsonReturnErrorMessage').innerHTML = errorMessage;
+
 //         var maxOption = 7;
         var maxOption = then[0].elements.meta.fullDepth;
         document.getElementById('maxDepth').options.length = 0;
@@ -1404,7 +1991,7 @@ Content-type: text/html\n
           document.getElementById('maxDepth').options[i-1] = new Option(label, i, true, false) }
         document.getElementById('maxDepth').selectedIndex = maxOption - 1;
 
-        cyPhenGraph.on('mouseover', 'edge', function(e){
+        cyPhenGraph.on('click', 'edge', function(e){
           var edge        = e.cyTarget; 
           var nodeId      = edge.data('target');
           var nodeObj     = cyPhenGraph.getElementById( nodeId );
@@ -1449,8 +2036,14 @@ Content-type: text/html\n
           var objId    = node.data('objId');
           var nodeName = node.data('name');
           var annotCounts = node.data('annotCounts');
+          var qvalue = node.data('qvalue');
           var linkout = linkFromNode(objId);
-          var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
+          var qtipContent = '';
+//           if (annotCounts !== 'undefined') { qtipContent += 'Annotation Count:' + annotCounts + '<br/>'; }
+          if (annotCounts !== 'undefined') { qtipContent += annotCounts + '<br/>'; }
+          if (qvalue !== 'undefined') {      qtipContent += 'Q Value: ' + qvalue + '<br/>';          }
+          qtipContent += '<a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
+//           var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/>Q Value :<br/>' + qvalue + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
 //           var qtipContent = annotCounts + '<br/><a target="_blank" href="http://amigo.geneontology.org/amigo/term/' + nodeId + '">' + nodeId + ' - ' + nodeName + '</a>';
           node.qtip({
                position: {
@@ -1477,6 +2070,7 @@ Content-type: text/html\n
         
         cyPhenGraph.on('tap', function(e){
           if( e.cyTarget === cyPhenGraph ){
+            document.getElementById("radio_whichgenehighlight_all").checked = true;	// when removing faded from all nodes, set radio for whichgenehighlight
             cyPhenGraph.elements().removeClass('faded');
           }
         });
@@ -1487,8 +2081,14 @@ Content-type: text/html\n
             var nodeId   = node.data('id');
             var nodeName = node.data('name');
             var annotCounts = node.data('annotCounts');
+            var qvalue = node.data('qvalue');
             var linkout = linkFromNode(objId);
-            var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
+//             var qtipContent = 'Annotation Count:<br/>' + annotCounts + '<br/>Q Value:<br/>' + qvalue + '<br/><a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
+            var qtipContent = '';
+//             if (annotCounts !== 'undefined') { qtipContent += 'Annotation Count:' + annotCounts + '<br/>'; }
+            if (annotCounts !== 'undefined') { qtipContent += annotCounts + '<br/>'; }
+            if (qvalue !== 'undefined') {      qtipContent += 'Q Value: ' + qvalue + '<br/>';          }
+            qtipContent += '<a target="_blank" href="' + linkout + '">' + objId + ' - ' + nodeName + '</a>';
             \$('#info').html( qtipContent );
         });
 
@@ -1537,6 +2137,125 @@ Content-type: text/html\n
 //     }
 //   }
 
+//             'pie-1-background-color': 'data(geneOnePieColor)',
+//             'pie-1-background-size': 'mapData(geneOnePieSize, 0, 100, 0, 100)',
+//             'pie-1-background-opacity': 'data(geneOnePieOpacity)',
+//             'pie-2-background-color': 'data(geneOneMinusPieColor)',
+//             'pie-2-background-size': 'mapData(geneOneMinusPieSize, 0, 100, 0, 100)',
+//             'pie-2-background-opacity': 'data(geneOneMinusPieOpacity)',
+//             'pie-4-background-color': 'data(geneTwoPieColor)',
+//             'pie-4-background-size': 'mapData(geneTwoPieSize, 0, 100, 0, 100)',
+//             'pie-4-background-opacity': 'data(geneTwoPieOpacity)',
+//             'pie-3-background-color': 'data(geneTwoMinusPieColor)',
+//             'pie-3-background-size': 'mapData(geneTwoMinusPieSize, 0, 100, 0, 100)',
+//             'pie-3-background-opacity': 'data(geneTwoMinusPieOpacity)',
+//             'border-color': 'data(nodeColor)',
+//             'border-style': 'data(borderStyle)',
+//             'border-width': 'data(borderWidth)',
+//             'width': 'data(diameter)',
+//             'height': 'data(diameter)',
+
+  \$('#radio_whichgenehighlight_all').on('click', function(){
+    cyPhenGraph.elements().removeClass('faded');
+  });
+
+  \$('#radio_whichgenehighlight_geneOne').on('click', function(){
+console.log('radio_whichgenehighlight_geneOne');
+    cyPhenGraph.elements().removeClass('faded');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      if (node.data('whichGeneHighlight') !== 'geneOne') { node.addClass('faded'); }
+    }
+  });
+
+  \$('#radio_whichgenehighlight_geneTwo').on('click', function(){
+console.log('radio_whichgenehighlight_geneTwo');
+    cyPhenGraph.elements().removeClass('faded');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      if (node.data('whichGeneHighlight') !== 'geneTwo') { node.addClass('faded'); }
+    }
+  });
+
+  \$('#radio_whichgenehighlight_geneBoth').on('click', function(){
+console.log('radio_whichgenehighlight_geneBoth');
+    cyPhenGraph.elements().removeClass('faded');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      if (node.data('whichGeneHighlight') !== 'geneBoth') { node.addClass('faded'); }
+    }
+  });
+
+  \$('#radio_pietype_percentage').on('click', function(){
+console.log('radio_pietype_percentage');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      var nodeId   = node.data('id');
+      var geneOnePieSizePercentage   = node.data('geneOnePieSizePercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieSize', geneOnePieSizePercentage);
+      var geneTwoPieSizePercentage   = node.data('geneTwoPieSizePercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieSize', geneTwoPieSizePercentage);
+      var geneOneMinusPieSizePercentage = node.data('geneOneMinusPieSizePercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieSize', geneOneMinusPieSizePercentage);
+      var geneTwoMinusPieSizePercentage = node.data('geneTwoMinusPieSizePercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieSize', geneTwoMinusPieSizePercentage);
+      var geneOnePieColorPercentage   = node.data('geneOnePieColorPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieColor', geneOnePieColorPercentage);
+      var geneTwoPieColorPercentage   = node.data('geneTwoPieColorPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieColor', geneTwoPieColorPercentage);
+      var geneOneMinusPieColorPercentage = node.data('geneOneMinusPieColorPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieColor', geneOneMinusPieColorPercentage);
+      var geneTwoMinusPieColorPercentage = node.data('geneTwoMinusPieColorPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieColor', geneTwoMinusPieColorPercentage);
+      var geneOnePieOpacityPercentage   = node.data('geneOnePieOpacityPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieOpacity', geneOnePieOpacityPercentage);
+      var geneTwoPieOpacityPercentage   = node.data('geneTwoPieOpacityPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieOpacity', geneTwoPieOpacityPercentage);
+      var geneOneMinusPieOpacityPercentage = node.data('geneOneMinusPieOpacityPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieOpacity', geneOneMinusPieOpacityPercentage);
+      var geneTwoMinusPieOpacityPercentage = node.data('geneTwoMinusPieOpacityPercentage');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieOpacity', geneTwoMinusPieOpacityPercentage);
+    }
+    cyPhenGraph.layout();
+  });
+
+  \$('#radio_pietype_totalcount').on('click', function(){
+console.log('radio_pietype_totalcount');
+    var nodes = cyPhenGraph.nodes();
+    for( var i = 0; i < nodes.length; i++ ){
+      var node     = nodes[i];
+      var nodeId   = node.data('id');
+      var geneOnePieSizeTotalcount   = node.data('geneOnePieSizeTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieSize', geneOnePieSizeTotalcount);
+      var geneTwoPieSizeTotalcount   = node.data('geneTwoPieSizeTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieSize', geneTwoPieSizeTotalcount);
+      var geneOneMinusPieSizeTotalcount = node.data('geneOneMinusPieSizeTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieSize', geneOneMinusPieSizeTotalcount);
+      var geneTwoMinusPieSizeTotalcount = node.data('geneTwoMinusPieSizeTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieSize', geneTwoMinusPieSizeTotalcount);
+      var geneOnePieColorTotalcount   = node.data('geneOnePieColorTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieColor', geneOnePieColorTotalcount);
+      var geneTwoPieColorTotalcount   = node.data('geneTwoPieColorTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieColor', geneTwoPieColorTotalcount);
+      var geneOneMinusPieColorTotalcount = node.data('geneOneMinusPieColorTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieColor', geneOneMinusPieColorTotalcount);
+      var geneTwoMinusPieColorTotalcount = node.data('geneTwoMinusPieColorTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieColor', geneTwoMinusPieColorTotalcount);
+      var geneOnePieOpacityTotalcount   = node.data('geneOnePieOpacityTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOnePieOpacity', geneOnePieOpacityTotalcount);
+      var geneTwoPieOpacityTotalcount   = node.data('geneTwoPieOpacityTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoPieOpacity', geneTwoPieOpacityTotalcount);
+      var geneOneMinusPieOpacityTotalcount = node.data('geneOneMinusPieOpacityTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneOneMinusPieOpacity', geneOneMinusPieOpacityTotalcount);
+      var geneTwoMinusPieOpacityTotalcount = node.data('geneTwoMinusPieOpacityTotalcount');
+      cyPhenGraph.\$('#' + nodeId).data('geneTwoMinusPieOpacity', geneTwoMinusPieOpacityTotalcount);
+    }
+    cyPhenGraph.layout();
+  });
 
   \$('#radio_weighted').on('click', function(){
 console.log('radio_weighted');
@@ -1611,17 +2330,39 @@ console.log( "Updating from " + event.data.name );
     rootsPossible.forEach(function(rootTerm) {
       if (document.getElementById(rootTerm).checked) { rootsChosen.push(document.getElementById(rootTerm).value); } });
     var rootsChosenGroup = rootsChosen.join(',');
-    var url = 'soba_biggo.cgi?action=annotSummaryJson&focusTermId=$focusTermId&datatype=$datatype';
-    if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) { url += '&radio_etgo=' + radioEtgo; }
-      else if ('$datatype' === 'phenotype') {                    url += '&radio_etp='  + radioEtp;  }
-      else if ('$datatype' === 'disease') {                      url += '&radio_etd='  + radioEtd;  }
-      else if ('$datatype' === 'anatomy') {                      url += '&radio_eta='  + radioEta;  }
-    url += '&rootsChosen=' + rootsChosenGroup + '&showControlsFlag=' + showControlsFlagValue + '&fakeRootFlag=' + fakeRootFlagValue + '&filterForLcaFlag=' + filterForLcaFlagValue + '&filterLongestFlag=' + filterLongestFlagValue + '&maxNodes=' + maxNodes + '&maxDepth=' + maxDepth;
+    var jsonUrl = 'soba_biggo.cgi?action=annotSummaryJson&focusTermId=$focusTermId&focusTermName=$focusTermName&datatype=$datatype';
+    if ('$processType' === 'source_ontology') {
+        jsonUrl = 'soba_biggo.cgi?action=annotSummaryJson&objectsQvalue=$encodedObjectsQvalue&datatype=$datatype'; }
+      else if ('$geneOneId' !== '') {
+        jsonUrl = 'soba_biggo.cgi?action=annotSummaryJson&geneOneId=$geneOneId&focusTermId=$focusTermId&geneOneName=$geneOneName&focusTermName=$focusTermName&datatype=$datatype'; }
+    if ( ('$datatype' === 'go') || ('$datatype' === 'biggo') ) { jsonUrl += '&radio_etgo=' + radioEtgo; }
+      else if ('$datatype' === 'phenotype') {                    jsonUrl += '&radio_etp='  + radioEtp;  }
+      else if ('$datatype' === 'disease') {                      jsonUrl += '&radio_etd='  + radioEtd;  }
+      else if ('$datatype' === 'anatomy') {                      jsonUrl += '&radio_eta='  + radioEta;  }
+    jsonUrl += '&rootsChosen=' + rootsChosenGroup + '&showControlsFlag=' + showControlsFlagValue + '&fakeRootFlag=' + fakeRootFlagValue + '&filterForLcaFlag=' + filterForLcaFlagValue + '&filterLongestFlag=' + filterLongestFlagValue + '&maxNodes=' + maxNodes + '&maxDepth=' + maxDepth;
+//     jsonUrl = 'soba_biggo.cgi';                     // for post
+console.log('jsonUrl ' + jsonUrl);
+//     var data = { action: "annotSummaryJson", focusTermId: "$focusTermId", datatype: "$datatype" };
+    var data = { action: "annotSummaryJson", datatype: "$datatype" };
+    if ('$processType' === 'source_gene')   {                  data["focusTermId"]       = "$focusTermId"; } 
+      else if ('$processType' === 'source_ontology') {         data["objectsQvalue"]     = "$encodedObjectsQvalue"; } 
+    if ('$geneOneId' !== '') {                                 data["geneOneId"]         = "$geneOneId"; }
+    if (('$datatype' === 'go') || ('$datatype' === 'biggo')) { data["radio_etgo"] = radioEtgo; data["rootsChosen"] = rootsChosenGroup; }
+      else if ('$datatype' === 'phenotype') { data["radio_etp"]         = radioEtp; }
+      else if ('$datatype' === 'disease') {   data["radio_etd"]         = radioEtd; }
+      else if ('$datatype' === 'anatomy') {   data["radio_eta"]         = radioEta; }
+    if (showControlsFlagValue !== 0) {        data["showControlsFlag"]  = showControlsFlagValue; }
+    if (fakeRootFlagValue !== 0) {            data["fakeRootFlag"]      = fakeRootFlagValue; }
+    if (filterForLcaFlagValue !== 0) {        data["filterForLcaFlag"]  = filterForLcaFlagValue; }
+    if (filterLongestFlagValue !== 0) {       data["filterLongestFlag"] = filterLongestFlagValue; }
+    if (maxNodes !== 0) {                     data["maxNodes"]          = maxNodes; }
+    if (maxDepth !== 0) {                     data["maxDepth"]          = maxDepth; }
     var graphPNew = \$.ajax({
-      url: url,
+      url: jsonUrl,
       type: 'GET',
       dataType: 'json'
     });
+//       data: data,
     Promise.all([ graphPNew ]).then(newCy);
     function newCy( then ){
       var elementsNew = then[0].elements;
@@ -1644,6 +2385,10 @@ console.log( "Updating from " + event.data.name );
       maxDepthElement.selectedIndex = maxOption - 1;
       if (event.data.name === 'maxDepth') { maxDepthElement.value = userSelectedValue; }
 //       if (userSelectedValue <= maxDepthElement.value) { maxDepthElement.value = userSelectedValue; }
+      document.getElementById("radio_whichgenehighlight_all").checked = true;	// when json loads new values, default to 'All nodes' highlighted radio option
+      cyPhenGraph.elements().removeClass('faded');				// when json loads new values, no nodes should be faded
+      document.getElementById("radio_pietype_totalcount").checked = true;	// when json loads new values, the graph changes to default options for pietype and weighted, so change radio as well
+      document.getElementById("radio_weighted").checked = true;
     }
   } // function updateElements()
 
@@ -1651,9 +2396,16 @@ console.log( "Updating from " + event.data.name );
 });
 </script>
 
+$debugText
+
+$analyzePairsText
+
+<!--JSONURL $jsonUrl-->
+
 </head>
 <body>
-<div style="width: 1705px;">
+<div id="jsonReturnErrorMessage"></div>
+<div style="width: 1255px;">
   <div id="cyPhenGraph"  style="border: 1px solid #aaa; float: left;  position: relative; height: 1050px; width: 1050px;"></div>
   <div id="exportdiv" style="width: 1050px; height: 1050px; position: relative; float: left; display: none;"><img id="png-export" style="border: 1px solid #ddd; display: none; max-width: 1050px; max-height: 1050px"></div>
     <div id="loading">
@@ -1661,12 +2413,14 @@ console.log( "Updating from " + event.data.name );
     </div>
   <div id="loadingdiv" style="z-index: 9999; border: 1px solid #aaa; position: relative; float: left; width: 200px; display: '';">Loading <img src="loading.gif" /></div>
   <div id="controldiv" style="z-index: 9999; border: 1px solid #aaa; position: relative; float: left; width: 200px; display: none;">
+    <div id="legendtitlediv">$legendtitlediv</div>
     <div id="exportdiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
-      <button id="view_png_button">export png</button>
+      <button id="view_png_button">Save Image</button>
       <button id="view_edit_button" style="display: none;">go back</button><br/>
     </div>
     <div id="legenddiv" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
-    <span id="autocompleteValue">$autocompleteValue</span><br/><br/>
+    <span style='color: red'  id="geneOneValue">$geneOneValue</span><br/><br/>
+    <span style='color: blue' id="autocompleteValue">$autocompleteValue</span><br/><br/>
     <span id="descriptionTerms">$descriptionTerms</span><br/><br/>
     <span id="nodeCount" style="display: $show_node_count ">node count<br/></span>
     <span id="edgeCount" style="display: $show_node_count ">edge count<br/></span>
@@ -1677,19 +2431,19 @@ console.log( "Updating from " + event.data.name );
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
-    <polygon fill="none" stroke="blue" stroke-dasharray="5,2" points="36,-36 0,-36 0,-0 36,-0 36,-36"/></g></g></svg></td><td valign="center">Root</td></tr>
+    <polygon fill="none" stroke="$withoutDirectLegendNodeColor" stroke-dasharray="5,2" points="36,-36 0,-36 0,-0 36,-0 36,-36"/></g></g></svg></td><td valign="center">Root</td></tr>
 
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
-    <ellipse fill="none" stroke="blue" stroke-dasharray="5,2" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">Without Direct Annotation</td></tr>
+    <ellipse fill="none" stroke="$withoutDirectLegendNodeColor" stroke-dasharray="5,2" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendBlueNodeText</td></tr>
 
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)">
     <polygon fill="white" stroke="none" points="-4,4 -4,-40 40,-40 40,4 -4,4"/>
     <g id="node1" class="node"><title></title>
-    <ellipse fill="none" stroke="red" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">With Direct Annotation</td></tr>
+    <ellipse fill="none" stroke="$withDirectLegendNodeColor" cx="18" cy="-18" rx="18" ry="18"/></g></g></svg></td><td valign="center">$legendRedNodeText</td></tr>
 
     <tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0 0 292.64526 63.826207">
     <defs><marker id="marker4922" style="overflow:visible"> <path style="fill:#949494;fill-opacity:1;fill-rule:evenodd;stroke:#5f5f5f;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1" d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z" transform="matrix(-1.1,0,0,-1.1,-1.1,0)" /> </marker> </defs>
@@ -1698,41 +2452,56 @@ console.log( "Updating from " + event.data.name );
 
     <!--<tr><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g class="graph" transform="scale(1 1) rotate(0) translate(4 40)"> <polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /> <g class="node" style="fill:#ff0000;fill-opacity:1" transform="translate(0,-19.2)"> <path d="M 35.99863,-0.58027907 A 18,18 0 0 1 27.088325,15.178899 18,18 0 0 1 8.9846389,15.221349 18,18 0 0 1 5.2625201e-4,-0.49586946" transform="scale(1,-1)" /> </g> <path style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:1;stroke-dasharray:5, 2" d="m 36.07799,-18.703936 a 18,18 0 0 1 -9.000001,15.5884578 18,18 0 0 1 -17.9999999,-4e-7 18,18 0 0 1 -8.99999952,-15.5884574" /> </g> </svg></td><td valign="center">AGR Slim terms</td></tr>-->
 
-    <tr id="trAllianceSlimWithout" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"> <polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#9494ff;fill-opacity:1"><ellipse style="fill:#9494ff;fill-opacity:1" ry="18" rx="18" cy="-18" cx="18" stroke-dasharray="5,2" stroke="blue" fill="none" /></g></g></svg></td><td valign="center">Alliance Slim Without Direct Annotation</td></tr>
+    <tr id="trAllianceSlimWithout" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"> <polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#9494ff;fill-opacity:1"><ellipse style="fill:#9494ff;fill-opacity:1" ry="18" rx="18" cy="-18" cx="18" stroke-dasharray="5,2" stroke="blue" fill="none" /></g></g></svg></td><td valign="center">$legendBlueFilledNodeText</td></tr>
 
-    <tr id="trAllianceSlimWith" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"><polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#ffaaaa"><ellipse style="fill:#ffaaaa" ry="18" rx="18" cy="-18" cx="18" stroke="red" fill="none" /></g></g></svg></td><td valign="center">Alliance Slim With Direct Annotation</td></tr>
+    <tr id="trAllianceSlimWith" style="display: none"><td valign="center"><svg width="22pt" height="22pt" viewBox="0.00 0.00 44.00 44.00"> <g transform="scale(1 1) rotate(0) translate(4 40)"><polygon points="-4,4 -4,-40 40,-40 40,4 -4,4" fill="white" /><g style="fill:#ffaaaa"><ellipse style="fill:#ffaaaa" ry="18" rx="18" cy="-18" cx="18" stroke="red" fill="none" /></g></g></svg></td><td valign="center">$legendRedFilledNodeText</td></tr>
 
     </table></div>
     <form method="get" action="soba_biggo.cgi">
       <div id="weightstate" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px;">
-        <input type="radio" name="radio_type" id="radio_weighted"   checked="checked" >Annotation weighted</input><br/>
-        <input type="radio" name="radio_type" id="radio_unweighted">Annotation unweighted</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_type" id="radio_weighted"   checked="checked" >$legendWeightstateWeighted</input><br/>
+        <input type="radio" name="radio_type" id="radio_unweighted">$legendWeightstateUnweighted</input><br/><br/>
+      </div>
+      <div id="pietype" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display:none;">
+        <input type="radio" name="radio_pietype" id="radio_pietype_totalcount"   checked="checked" >$legendPietypeTotalcount</input><br/>
+        <input type="radio" name="radio_pietype" id="radio_pietype_percentage">$legendPietypePercentage</input><br/><br/>
+      </div>
+      <div id="whichgenehighlight" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display:none;">
+        <!--Highlight gene nodes :<br/>-->
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_all"   checked="checked" >All nodes</input><br/>
+        <!--<input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneOne"><a href='https://wormbase.org/species/c_elegans/gene/$geneOneId' target='_blank' style='color: red'>$geneOneName</a></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneTwo"><a href='https://wormbase.org/species/c_elegans/gene/$focusTermId' target='_blank' style='color: blue'>$focusTermName</a></input><br/>-->
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneOne"><span style='color: red'>$geneOneName specific</span></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneTwo"><span style='color: blue'>$focusTermName specific</span></input><br/>
+        <input type="radio" name="radio_whichgenehighlight" id="radio_whichgenehighlight_geneBoth">shared</input><br/><br/>
+      </div>
+      $legendSkipEvidenceStart
       <div id="evidencetypeanatomy" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_eta"  id="radio_eta_all"             value="radio_eta_all"             $checked_radio_eta_all >all evidence types</input><br/>
         <input type="radio" name="radio_eta"  id="radio_eta_onlyexprcluster" value="radio_eta_onlyexprcluster" $checked_radio_eta_onlyexprcluster >only expression cluster</input><br/>
-        <input type="radio" name="radio_eta"  id="radio_eta_onlyexprpattern" value="radio_eta_onlyexprpattern" $checked_radio_eta_onlyexprpattern >only expression pattern</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_eta"  id="radio_eta_onlyexprpattern" value="radio_eta_onlyexprpattern" $checked_radio_eta_onlyexprpattern >only expression pattern</input><br/><br/>
+      </div>
       <div id="evidencetypephenotype" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etp"  id="radio_etp_all"           value="radio_etp_all"           $checked_radio_etp_all >all evidence types</input><br/>
-        <input type="radio" name="radio_etp"  id="radio_etp_onlyrnai"      value="radio_etp_onlyrnai"      $checked_radio_etp_onlyrnai >only rnai</input><br/>
-        <input type="radio" name="radio_etp"  id="radio_etp_onlyvariation" value="radio_etp_onlyvariation" $checked_radio_etp_onlyvariation >only variation</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_etp"  id="radio_etp_onlyrnai"      value="radio_etp_onlyrnai"      $checked_radio_etp_onlyrnai >only RNAi</input><br/>
+        <input type="radio" name="radio_etp"  id="radio_etp_onlyvariation" value="radio_etp_onlyvariation" $checked_radio_etp_onlyvariation >only variation</input><br/><br/>
+      </div>
       <div id="evidencetypedisease" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etd" id="radio_etd_all"        value="radio_etd_all"        $checked_radio_etd_all ><a href="http://geneontology.org/docs/guide-go-evidence-codes/" target="_blank">all evidence types</a></input><br/>
-        <input type="radio" name="radio_etd" id="radio_etd_excludeiea" value="radio_etd_excludeiea" $checked_radio_etd_excludeiea >exclude IEA</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_etd" id="radio_etd_excludeiea" value="radio_etd_excludeiea" $checked_radio_etd_excludeiea >exclude IEA</input><br/><br/>
+      </div>
       <div id="evidencetypego" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="radio" name="radio_etgo" id="radio_etgo_withiea"    value="radio_etgo_withiea"    $checked_radio_etgo_withiea ><a href="http://geneontology.org/docs/guide-go-evidence-codes/" target="_blank">all evidence types</a></input><br/>
         <input type="radio" name="radio_etgo" id="radio_etgo_excludeiea" value="radio_etgo_excludeiea" $checked_radio_etgo_excludeiea >exclude IEA</input><br/>
-        <input type="radio" name="radio_etgo" id="radio_etgo_onlyiea"    value="radio_etgo_onlyiea"    $checked_radio_etgo_onlyiea >experimental evidence only</input><br/>
-      </div><br/>
+        <input type="radio" name="radio_etgo" id="radio_etgo_onlyiea"    value="radio_etgo_onlyiea"    $checked_radio_etgo_onlyiea >experimental evidence only</input><br/><br/>
+      </div>
+      $legendSkipEvidenceEnd
       <div id="rootschosen" style="z-index: 9999; position: relative; top: 0; left: 0; width: 200px; display: none;">
         <input type="checkbox" name="root_bp" id="root_bp" value="GO:0008150" $checked_root_bp >Biological Process</input><br/>
         <input type="checkbox" name="root_cc" id="root_cc" value="GO:0005575" $checked_root_cc >Cellular Component</input><br/>
-        <input type="checkbox" name="root_mf" id="root_mf" value="GO:0003674" $checked_root_mf >Molecular Function</input><br/>
-      </div><br/>
-      <input type="hidden" name="focusTermId" value="$focusTermId">
+        <input type="checkbox" name="root_mf" id="root_mf" value="GO:0003674" $checked_root_mf >Molecular Function</input><br/><br/>
+      </div>
+      <input type="hidden" name="focusTermId" value="$focusTermId">	<!-- not sure what this is for -->
       <div id="controlMenu" style="display: $displayControlMenu;">
         <!--Max Nodes<input type="input" size="3" id="maxNodes" name="maxNodes" value="0"><br/>-->
         <input type="checkbox" id="showControlsFlag"  name="showControlsFlag"  value="1" $checked_showControls>Show Controls<br/>
@@ -1753,54 +2522,31 @@ print qq($toPrint);
 print qq(</body></html>);
 } # sub annotSummaryCytoscape
 
-sub svgCleanup {
-  my ($svgGenerated, $focusTermId) = @_;
-  my ($svgMarkup) = $svgGenerated =~ m/(<svg.*<\/svg>)/s;             # capture svg markup
-  my ($height, $width) = ('', '');
-  if ($svgMarkup =~ m/<svg width="(\d+)pt" height="(\d+)pt"/) { $width = $1; $height = $2; }
-  my $hwratio = $height / $width;
-  my $widthResolution = 960;
-  if ($width > $widthResolution) { 
-    my $newwidth  = $widthResolution;
-    my $newheight = int($newwidth * $hwratio);
-    $svgMarkup =~ s/<svg width="${width}pt" height="${height}pt"/<svg width="${newwidth}pt" height="${newheight}pt"/g;
-  }
-  $svgMarkup =~ s/<title>[^<]*?<\/title>/<title>${focusTermId}Phenotypes<\/title>/g;                            # remove automatic title
-  $svgMarkup =~ s/<title>test<\/title>//g;                            # remove automatic title
-  $svgMarkup =~ s/<title>Perl<\/title>//g;                            # remove automatic title
-  $svgMarkup =~ s/_placeholderColon_/:/g;                             # ids can't be created with a : in them, so have to add the : after the svg is generated
-  $svgMarkup =~ s/LINEBREAK//g;                             		# remove leading hidden linebreak to offset counts of rnai and variation in transparent line afterward
-  $svgMarkup =~ s/fill="#fffffe"/fill="rgba\(0,0,0,0.01\)"/g;		# cannot set opacity value directly at creating, so setting fontcolor to transparent, which becomes #fffffe which we can replace with an rgba with very low opacity
-  my (@xlinkTitle) = $svgMarkup =~ m/xlink:title="(.*?)"/g;
-  foreach my $xlt (@xlinkTitle) {
-    my $xltEdited = $xlt;
-    $xltEdited =~ s/&lt;br\/&gt;/\n/g;
-    $xltEdited =~ s/&lt;\/?b&gt;//g;
-    $xltEdited =~ s/&lt;font color=&quot;transparent&quot;&gt;//g;
-    $xltEdited =~ s/&lt;\/font&gt;//g;
-    $xltEdited =~ s/^\n//;						# remove leading linebreak added by placeholder line break for centering label
-    $svgMarkup =~ s/$xlt/$xltEdited/g; 
-  } # foreach my $xlt (@xlinkTitle)
-  return $svgMarkup;
-} # sub svgCleanup
-
 sub calculateLCA {						# find all lowest common ancestors
   my ($ph1, $ph2) = @_;
   my @terms = ( $ph1, $ph2 );
   my %amountInBoth;
   my %inBoth;							# get all nodes that are in both sets
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(HERE\n); }
   foreach my $annotTerm (@terms) {
-    foreach my $phenotype (sort keys %{ $nodesAll{$annotTerm} }) {
-      $amountInBoth{$phenotype}++; } }
-  foreach my $term (sort keys %amountInBoth) { if ($amountInBoth{$term} > 1) { $inBoth{$term}++; } }
+    foreach my $nodeIdAny (sort keys %{ $nodesAll{$annotTerm} }) {
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(annotTerm $annotTerm has nodesAll $nodeIdAny\n); }
+      $amountInBoth{$nodeIdAny}++; } }
+  foreach my $term (sort keys %amountInBoth) { if ($amountInBoth{$term} > 1) { $inBoth{$term}++; 
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(term $term inBoth\n); }
+} }
   %ancestorNodes = ();
   foreach my $annotTerm (@terms) {
     foreach my $child (sort keys %{ $edgesAll{$annotTerm} }) {
       if ($inBoth{$child}) {
-        foreach my $parent (sort keys %{ $edgesAll{$annotTerm}{$child} }) { $ancestorNodes{$parent}++; } } } }
+        foreach my $parent (sort keys %{ $edgesAll{$annotTerm}{$child} }) { $ancestorNodes{$parent}++; 
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(parent $parent in edgesAll and inBoth for child $child stored in ancestorNodes\n); }
+} } } }
   my %lca;
   foreach my $bothNode (sort keys %inBoth) {
-    unless ($ancestorNodes{$bothNode}) { $lca{$bothNode}++; }
+    unless ($ancestorNodes{$bothNode}) { $lca{$bothNode}++; 
+# if (($ph1 eq 'GO:0016020') && ($ph2 eq 'GO:0016021')) { print qq(in inBoth and not in ancestorNodes, therefore LCA $bothNode\n); }
+}
   }
   return \%lca;
 } # sub calculateLCA
@@ -1849,57 +2595,42 @@ sub recurseLongestPath {
   } # foreach $parent (sort keys %{ $paths{"childToParent"}{$current} })
 } # sub recurseLongestPath
 
-sub getInferredRelationship {
-  my ($one, $two) = @_; my $relationship = 'unknown';
-  if ($one eq 'is_a') {
-      if ($two eq 'is_a') {                     $relationship = 'is_a';                  }
-      elsif ($two eq 'part_of') {               $relationship = 'part_of';               }
-      elsif ($two eq 'regulates') {             $relationship = 'regulates';             }
-      elsif ($two eq 'positively_regulates') {  $relationship = 'positively_regulates';  }
-      elsif ($two eq 'negatively_regulates') {  $relationship = 'negatively_regulates';  }
-      elsif ($two eq 'has_part') {              $relationship = 'has_part';              } }
-    elsif ($one eq 'part_of') { 
-      if ($two eq 'is_a') {                     $relationship = 'part_of';               }
-      elsif ($two eq 'part_of') {               $relationship = 'part_of';               } }
-    elsif ($one eq 'regulates') { 
-      if ($two eq 'is_a') {                     $relationship = 'regulates';             }
-      elsif ($two eq 'part_of') {               $relationship = 'regulates';             } }
-    elsif ($one eq 'positively_regulates') { 
-      if ($two eq 'is_a') {                     $relationship = 'positively_regulates';  }
-      elsif ($two eq 'part_of') {               $relationship = 'regulates';             } }
-    elsif ($one eq 'negatively_regulates') { 
-      if ($two eq 'is_a') {                     $relationship = 'negatively_regulates';  }
-      elsif ($two eq 'part_of') {               $relationship = 'regulates';             } }
-    elsif ($one eq 'has_part') { 
-      if ($two eq 'is_a') {                     $relationship = 'has_part';              }
-      elsif ($two eq 'has_part') {              $relationship = 'has_part';              } }
-  return $relationship;
-} # sub getInferredRelationship
-
-sub makeLink {
-  my ($focusTermId, $text) = @_;
-  my $url = "soba_biggo.cgi?action=Tree&focusTermId=$focusTermId";
-  my $link = qq(<a href="$url">$text</a>);
-  return $link;
-} # sub makeLink
 
 sub printHtmlFooter { print qq(</body></html>\n); }
 
+# UNDO
 sub printHtmlHeader { 
+  my $header = '';
   my $javascript = << "EndOfText";
-<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
-<script type="text/javascript">
-function toggleShowHide(element) {
-    document.getElementById(element).style.display = (document.getElementById(element).style.display == "none") ? "" : "none";
-    return false;
-}
-function togglePlusMinus(element) {
-    document.getElementById(element).innerHTML = (document.getElementById(element).innerHTML == "&nbsp;+&nbsp;") ? "&nbsp;-&nbsp;" : "&nbsp;+&nbsp;";
-    return false;
-}
+<script src="https://code.jquery.com/jquery-1.9.1.js"></script>
 </script>
 EndOfText
-  print qq(Content-type: text/html\n\n<html><head><title>Amigo testing</title>$javascript</head><body>\n); }
+  print qq(Content-type: text/html\n\n$header $javascript<body>\n); 
+}
+
+# UNDO
+# sub printHtmlHeader { 
+#   my ($title) = @_;
+#   if ($title) { $cshlHeader =~ s/<title>(.*?)<\/title>/<title>$title<\/title>/; }
+#   $cshlHeader =~ s|<script src="https://www.wormbase.org/static/js/wormbase.min.js" type="text/javascript"></script>||;		# remove javascript to prevent popup text when hovering over nodes	# may not need to remove it
+#   my $javascript = << "EndOfText";
+# <script src="https://code.jquery.com/jquery-1.9.1.js"></script>
+# <script type="text/javascript">
+# function toggleShowHide(element) {
+#     document.getElementById(element).style.display = (document.getElementById(element).style.display == "none") ? "" : "none";
+#     return false;
+# }
+# function togglePlusMinus(element) {
+#     document.getElementById(element).innerHTML = (document.getElementById(element).innerHTML == "&nbsp;+&nbsp;") ? "&nbsp;-&nbsp;" : "&nbsp;+&nbsp;";
+#     return false;
+# }
+# </script>
+# EndOfText
+#   my ($var, $wormbaseHeader) = &getHtmlVar($query, 'wormbaseHeader');
+#   if ($wormbaseHeader eq 'false') { $cshlHeader = "<html><head><title>$title</title>"; }
+# #   print qq(Content-type: text/html\n\n<html><head><title>Amigo testing</title>$javascript</head><body>\n); 
+#   print qq(Content-type: text/html\n\n$cshlHeader $javascript</head>\n); 
+# }
 
 sub getHtmlVar {                
   no strict 'refs';             
@@ -1911,7 +2642,7 @@ sub getHtmlVar {
     $$var = &untaint($oop);         
 #     return ($var, $$var);           
     my $encoded = encode_entities($$var);
-    return ($var, $encoded);
+    return ($var, $encoded);           
   } 
 } # sub getHtmlVar
 
@@ -1930,4 +2661,131 @@ sub untaint {
   } # else # if ($tainted eq "")
   return $untainted;
 } # sub untaint
+
+
+sub getInfoGif {
+  my $infogif = <<"EndOfText";
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.1"
+   width="14"
+   height="14.485189"
+   id="svg2"
+   inkscape:version="0.48.3.1 r9886"
+   sodipodi:docname="info.svg">
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="640"
+     inkscape:window-height="480"
+     id="namedview15"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:zoom="4.3491799"
+     inkscape:cx="7.0000054"
+     inkscape:cy="7.2369895"
+     inkscape:window-x="1044"
+     inkscape:window-y="285"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg2" />
+  <defs
+     id="defs4">
+    <linearGradient
+       id="linearGradient3759">
+      <stop
+         id="stop3761"
+         style="stop-color:#ffffff;stop-opacity:1"
+         offset="0" />
+    </linearGradient>
+    <linearGradient
+       x1="274.82114"
+       y1="438.6864"
+       x2="278.05551"
+       y2="438.6864"
+       id="linearGradient3771"
+       xlink:href="#linearGradient3759"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(3.8755518,0,0,3.8755519,-1003.9342,516.823)" />
+  </defs>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     transform="translate(-271.74999,-421.19103)"
+     id="layer1">
+    <text
+       x="268.57144"
+       y="423.79074"
+       id="text3773"
+       xml:space="preserve"
+       style="font-size:18px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       sodipodi:linespacing="125%"><tspan
+         x="268.57144"
+         y="423.79074"
+         id="tspan3775" /></text>
+    <g
+       transform="matrix(0.26666667,0,0,0.26666667,204.41666,314.18466)"
+       id="g2990">
+      <path
+         d="m 296.78571,452.18362 a 15.535714,16.25 0 1 1 -31.07142,0 15.535714,16.25 0 1 1 31.07142,0 z"
+         transform="matrix(1.4560743,0,0,1.4470161,-130.7709,-225.88336)"
+         id="path2989"
+         style="fill:#0000ff;fill-opacity:1;stroke:#0000ff;stroke-width:5;stroke-miterlimit:5;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+         inkscape:connector-curvature="0" />
+      <text
+         x="272.42188"
+         y="441.70511"
+         id="text3777"
+         xml:space="preserve"
+         style="font-size:18px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         sodipodi:linespacing="125%"><tspan
+           x="272.42188"
+           y="441.70511"
+           id="tspan3779"
+           style="font-size:40px;font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-opacity:1;font-family:Times New Roman;-inkscape-font-specification:'Times New Roman, Bold Italic'">i</tspan></text>
+    </g>
+  </g>
+</svg>
+EndOfText
+  return $infogif;
+}
+
+
+sub cshlNew {
+  my $title = shift;
+  unless ($title) { $title = ''; }      # init title in case blank
+  my $page = get "https://tazendra.caltech.edu/~azurebrd/sanger/wormbaseheader/WB_header_footer.html";
+#  $page =~ s/href="\//href="http:\/\/www.wormbase.org\//g;
+#  $page =~ s/src="/src="http:\/\/www.wormbase.org/g;
+  my ($header, $footer) = $page =~ m/^(.*?)\s+DIVIDER\s+(.*?)$/s;  # 2006 11 20    # get this from tazendra's script result.
+#   $header =~ s/WormBase - Home Page/$title/g;                 # 2015 05 07    # wormbase 2.0
+#   $header =~ s/WS2../WS256/g; # Dictionary freeze for P/GEA paper review process
+  $header =~ s/<title>.*?<\/title>/<title>$title<\/title>/g;
+  return ($header, $footer);
+} # sub cshlNew
 
