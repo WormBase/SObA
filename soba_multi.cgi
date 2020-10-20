@@ -72,7 +72,8 @@ my ($cshlHeader, $cshlFooter) = &cshlNew();
 my $json = JSON->new->allow_nonref;
 my $query = new CGI;
 # my $base_solr_url = "http://localhost:8080/solr/$top_datatype/";		# big geneontology golr server
-my $base_solr_url = "http://localhost:8080/solr/";		# big geneontology golr server
+# my $base_solr_url = "http://localhost:8080/solr/";		# big geneontology golr server
+my $base_solr_url = "http://wobrbig.caltech.edu:8080/solr/";		# 2020 03 27 - changing this for Raymond
 
 
 my %paths;	# finalpath => array of all (array of nodes of paths that end)
@@ -697,7 +698,9 @@ EndOfText
 
 #   my $datatype = 'biggo';		# by defalt for front page
   my $datatype = 'phenotype';		# by defalt for front page
-  my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+#   my $solr_taxon_url = $base_solr_url . $datatype . '/select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
+# UNDO
+  my $solr_taxon_url = $base_solr_url . 'select?qt=standard&fl=id,taxon,taxon_label&version=2.2&wt=json&rows=0&indent=on&q=*:*&facet=true&facet.field=taxon_label&facet.mincount=1&fq=document_category:%22bioentity%22';
   my $page_data = get $solr_taxon_url;
   my $perl_scalar = $json->decode( $page_data );
   my %jsonHash = %$perl_scalar;
@@ -1860,7 +1863,7 @@ my $debugText = '';
         \$('#evidencetypeanatomy').show(); }
     var cyPhenGraph = window.cyPhenGraph = cytoscape({
       container: document.getElementById('cyPhenGraph'),
-      layout: { name: 'dagre', padding: 10, nodeSep: 5 },
+      layout: { name: 'dagre', padding: 10, nodeSep: 1, edgeSep: 1, rankSep: 5 },
       style: cytoscape.stylesheet()
         .selector('node')
           .css({
@@ -2542,36 +2545,39 @@ sub recurseLongestPath {
 
 sub printHtmlFooter { print qq(</body></html>\n); }
 
-# sub printHtmlHeader { 
-#   my $javascript = << "EndOfText";
-# <script src="https://code.jquery.com/jquery-1.9.1.js"></script>
-# </script>
-# EndOfText
-#   print qq(Content-type: text/html\n\n$header $javascript<body>\n); 
-# }
-
+# UNDO
 sub printHtmlHeader { 
-  my ($title) = @_;
-  if ($title) { $cshlHeader =~ s/<title>(.*?)<\/title>/<title>$title<\/title>/; }
-  $cshlHeader =~ s|<script src="https://www.wormbase.org/static/js/wormbase.min.js" type="text/javascript"></script>||;		# remove javascript to prevent popup text when hovering over nodes	# may not need to remove it
+  my $header = '';
   my $javascript = << "EndOfText";
 <script src="https://code.jquery.com/jquery-1.9.1.js"></script>
-<script type="text/javascript">
-function toggleShowHide(element) {
-    document.getElementById(element).style.display = (document.getElementById(element).style.display == "none") ? "" : "none";
-    return false;
-}
-function togglePlusMinus(element) {
-    document.getElementById(element).innerHTML = (document.getElementById(element).innerHTML == "&nbsp;+&nbsp;") ? "&nbsp;-&nbsp;" : "&nbsp;+&nbsp;";
-    return false;
-}
 </script>
 EndOfText
-  my ($var, $wormbaseHeader) = &getHtmlVar($query, 'wormbaseHeader');
-  if ($wormbaseHeader eq 'false') { $cshlHeader = "<html><head><title>$title</title>"; }
-#   print qq(Content-type: text/html\n\n<html><head><title>Amigo testing</title>$javascript</head><body>\n); 
-  print qq(Content-type: text/html\n\n$cshlHeader $javascript</head>\n); 
+  print qq(Content-type: text/html\n\n$header $javascript<body>\n); 
 }
+
+# UNDO
+# sub printHtmlHeader { 
+#   my ($title) = @_;
+#   if ($title) { $cshlHeader =~ s/<title>(.*?)<\/title>/<title>$title<\/title>/; }
+#   $cshlHeader =~ s|<script src="https://www.wormbase.org/static/js/wormbase.min.js" type="text/javascript"></script>||;		# remove javascript to prevent popup text when hovering over nodes	# may not need to remove it
+#   my $javascript = << "EndOfText";
+# <script src="https://code.jquery.com/jquery-1.9.1.js"></script>
+# <script type="text/javascript">
+# function toggleShowHide(element) {
+#     document.getElementById(element).style.display = (document.getElementById(element).style.display == "none") ? "" : "none";
+#     return false;
+# }
+# function togglePlusMinus(element) {
+#     document.getElementById(element).innerHTML = (document.getElementById(element).innerHTML == "&nbsp;+&nbsp;") ? "&nbsp;-&nbsp;" : "&nbsp;+&nbsp;";
+#     return false;
+# }
+# </script>
+# EndOfText
+#   my ($var, $wormbaseHeader) = &getHtmlVar($query, 'wormbaseHeader');
+#   if ($wormbaseHeader eq 'false') { $cshlHeader = "<html><head><title>$title</title>"; }
+# #   print qq(Content-type: text/html\n\n<html><head><title>Amigo testing</title>$javascript</head><body>\n); 
+#   print qq(Content-type: text/html\n\n$cshlHeader $javascript</head>\n); 
+# }
 
 sub getHtmlVar {                
   no strict 'refs';             
