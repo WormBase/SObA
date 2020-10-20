@@ -75,8 +75,8 @@ my ($cshlHeader, $cshlFooter) = &cshlNew();
 my $json = JSON->new->allow_nonref;
 my $query = new CGI;
 # my $base_solr_url = "http://localhost:8080/solr/$top_datatype/";		# big geneontology golr server
-# my $base_solr_url = "http://localhost:8080/solr/";		# big geneontology golr server
-my $base_solr_url = "http://wobrbig.caltech.edu:8080/solr/";		# 2020 03 27 - changing this for Raymond
+my $base_solr_url = "http://localhost:8080/solr/";		# big geneontology golr server
+# my $base_solr_url = "http://wobrbig.caltech.edu:8080/solr/";		# 2020 03 27 - changing this for Raymond
 
 
 my %paths;	# finalpath => array of all (array of nodes of paths that end)
