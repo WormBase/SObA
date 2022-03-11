@@ -1,0 +1,8 @@
+ID: term ID
+rAll: count of direct annotating nodes
+nAll: count of annotating nodes
+eAll: count of edges
+nF1: count of nodes after Lowest Common Ancestor trimming
+eF1: count of edges after LCA trimming
+nF2: count of nodes after Transitive Closure trimming
+eF2: count of nodes after TC trimming
