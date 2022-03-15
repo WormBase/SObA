@@ -1,0 +1,64 @@
+#### Modified from GeneOntology project (Seth Carbon).
+#### This docker file is trying to run and install AmiGO/GOlr
+#### minimally as root on localhost.
+####
+#### Build image with playbooks from this directory:
+####  docker build --tag wb/solr:`date +%Y-%m-%dT%H%M%S` --file ./Dockerfile.golr_manual .
+#### Launch (with solr index pre-built)
+####  docker run -p 127.0.0.1:8080:8080 -v ~/Downloads/srv-solr:/srv/solr -t wb/solr
+####
+
+## Grab the latest(?) Ubuntu image.
+FROM ubuntu:20.04
+
+## Quiet it down a little bit.
+ENV DEBIAN_FRONTEND noninteractive
+ENV TERM linux
+
+## Get the system updated.
+RUN apt-get update
+#RUN apt-get -y dist-upgrade
+## Small "repairs" for sanity.
+RUN apt-get -y install libterm-readline-gnu-perl
+RUN apt-get -y install apt-utils
+RUN apt-get -y install software-properties-common
+
+## Sanity packages.
+RUN apt-get -y install less mg byobu htop iotop di git make kwalify
+
+## Node. (>= ubuntu 20.04 no need for download)
+# RUN apt-get -y install build-essential curl
+# RUN curl -sL https://deb.nodesource.com/setup_4.x | bash -
+RUN apt-get install -y nodejs
+
+## Grab the AmiGO/GOlr repo and change context.
+RUN mkdir -p /srv
+RUN git init
+RUN git clone https://github.com/raymond91125/amigo.git --branch master --single-branch /srv/amigo
+WORKDIR /srv/amigo
+RUN git pull
+
+## GOlr/Jetty setup.
+RUN apt-get -y install jetty9
+RUN cp ./golr/solr/solr.war /var/lib/jetty9/webapps/
+RUN chown jetty /var/lib/jetty9/webapps/solr.war
+RUN chgrp adm /var/lib/jetty9/webapps/solr.war
+RUN cp ./golr/jetty/jetty /etc/default/jetty9
+RUN mkdir -p /srv/solr/data
+RUN mkdir -p /srv/solr/conf
+RUN cp ./golr/solr/conf/schema.xml /srv/solr/conf/schema.xml
+RUN cp ./golr/solr/conf/solrconfig.xml /srv/solr/conf/solrconfig.xml
+RUN chown -R jetty /srv/solr/
+RUN chgrp -R adm /srv/solr/
+
+## Custom runtime locations for jetty9/solr for the Docker environment.
+RUN mkdir -p /tmp/jetty9
+RUN chown -R jetty /tmp/jetty9
+RUN chgrp -R adm /tmp/jetty9
+
+## 
+#EXPOSE 8080
+WORKDIR /usr/share/jetty9
+##
+CMD java -Xmx20g -Djava.awt.headless=true -Dsolr.solr.home=/srv/solr -Djava.io.tmpdir=/tmp/jetty9 -Djava.library.path=/usr/lib -Djetty.home=/usr/share/jetty9 -Djetty.logs=/var/log/jetty9 -Djetty.state=/tmp/jetty.state -Djetty.host=127.0.0.1 -Djetty.port=8080 -jar /usr/share/jetty9/start.jar --daemon etc/jetty-logging.xml etc/jetty-started.xml
+
