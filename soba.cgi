@@ -1,6 +1,9 @@
 #!/usr/bin/perl 
 
 # partially cleaned up amigo.cgi from 12.204 to only produce SObA  2016 12 14
+#
+# change jex.css from tazendra to caltech prod.
+# changed tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi to caltech-curation.textpressolab.com/pub/cgi-bin/forms/datatype_objects.cgi but unclear if this was needed at all.  2024 10 18
 
 # /~raymond/cgi-bin/soba_biggo.cgi?action=annotSummaryCytoscape&autocompleteValue=F56F4.3%20(Caenorhabditis%20elegans,%20WB:WBGene00018980,%20-,%20-)&showControlsFlag=1
 
@@ -123,7 +126,8 @@ sub autocompleteTazendraXHR {
   my ($var, $words) = &getHtmlVar($query, 'query');
   ($var, my $objectType) = &getHtmlVar($query, 'objectType');
   if ($objectType eq 'gene') { 
-    my $url = 'https://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&userValue=' . $words;
+#     my $url = 'https://tazendra.caltech.edu/~azurebrd/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&userValue=' . $words;
+    my $url = 'https://caltech-curation.textpressolab.com/pub/cgi-bin/forms/datatype_objects.cgi?action=autocompleteXHR&objectType=gene&userValue=' . $words;
     my $page_data = get $url;
     if ($page_data) { print qq($page_data\n); } }
 } # sub autocompleteTazendraXHR
@@ -370,7 +374,7 @@ sub pickTwoGenesPage {
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
   $header .= <<"EndOfText";
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
-    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="http://caltech-curation.textpressolab.com/pub/cgi-bin/forms/stylesheets/jex.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
@@ -476,7 +480,7 @@ sub pickTwoGenesBiggoPage {
   $header .= qq(<style type="text/css">#forcedProcessAutoComplete { width:30em; padding-bottom:2em; } </style>);
   $header .= <<"EndOfText";
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
-    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="http://caltech-curation.textpressolab.com/pub/cgi-bin/forms/stylesheets/jex.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
@@ -577,7 +581,7 @@ sub pickOneGeneBiggoPage {
 
   $header .= <<"EndOfText";
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
-    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="http://caltech-curation.textpressolab.com/pub/cgi-bin/forms/stylesheets/jex.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
@@ -680,7 +684,7 @@ sub pickOneGenePage {
 #     <script type="text/javascript" src="../javascript/soba.js"></script>
   $header .= <<"EndOfText";
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/autocomplete/assets/skins/sam/autocomplete.css" />
-    <link rel="stylesheet" type="text/css" href="https://tazendra.caltech.edu/~azurebrd/stylesheets/jex.css" />
+    <link rel="stylesheet" type="text/css" href="http://caltech-curation.textpressolab.com/pub/cgi-bin/forms/stylesheets/jex.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/fonts/fonts-min.css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/yahoo-dom-event/yahoo-dom-event.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/yui/2.7.0/connection/connection-min.js"></script>
